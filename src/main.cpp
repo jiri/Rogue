@@ -9,9 +9,6 @@
 const int SCREEN_WIDTH  = 640;
 const int SCREEN_HEIGHT = 480;
 
-class Player {
-};
-
 SDL_Texture *textToTexture(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Color color = {0, 0, 0}) {
   SDL_Surface *surface = TTF_RenderText_Solid(font, text, color);
   SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
@@ -98,10 +95,7 @@ class Map {
       return map[y * width + x];
     }
 
-    void render(uint32_t ox, uint32_t oy, SDL_Renderer *r, TTF_Font *f) {
-      // auto wall  = loadTexture(r, "res/wall.png");
-      // auto floor = loadTexture(r, "res/floor.png");
-
+    void render(uint32_t ox, uint32_t oy, SDL_Renderer *r) {
       for (uint32_t y = 0; y < height; y++) {
         for (uint32_t x = 0; x < width; x++) {
           SDL_Rect rect {
@@ -112,18 +106,37 @@ class Map {
           };
 
           get(x, y)->render(r, &rect);
-          // if (get(x, y)) {
-          //   SDL_RenderCopy(r, wall, nullptr, &rect);
-          // } else {
-          //   SDL_RenderCopy(r, floor, nullptr, &rect);
-          // }
         }
       }
-
-      // SDL_DestroyTexture(wall);
-      // SDL_DestroyTexture(floor);
     }
 };
+
+class Player {
+  private:
+    SDL_Texture *texture;
+
+  public:
+    uint32_t x;
+    uint32_t y;
+
+    Player(SDL_Renderer *r, uint32_t x, uint32_t y)
+      : x(x)
+      , y(y)
+      , texture { loadTexture(r, "res/player.png") }
+    { }
+
+    void render(SDL_Renderer *r, uint32_t tileSize) {
+      SDL_Rect rect {
+        static_cast<int>(x * tileSize),
+        static_cast<int>(y * tileSize),
+        static_cast<int>(tileSize),
+        static_cast<int>(tileSize),
+      };
+
+      SDL_RenderCopy(r, texture, nullptr, &rect);
+    }
+};
+
 
 int main() {
   /* All systems go! */
@@ -174,6 +187,7 @@ int main() {
 
   /* Data */
   Map m(renderer, 20, 20);
+  Player p(renderer, 5, 5);
 
   /* Main loop */
   bool quit = false;
@@ -181,14 +195,26 @@ int main() {
 
   while (!quit) {
     while (SDL_PollEvent(&e) != 0) {
-      if (e.type == SDL_QUIT) {
-        quit = true;
+      switch (e.type) {
+        case SDL_QUIT:
+          quit = true;
+          break;
+
+        case SDL_KEYDOWN:
+          switch (e.key.keysym.sym) {
+            case SDLK_LEFT:  p.x--; break;
+            case SDLK_RIGHT: p.x++; break;
+            case SDLK_UP:    p.y--; break;
+            case SDLK_DOWN:  p.y++; break;
+          }
+          break;
       }
     }
 
     SDL_RenderClear(renderer);
 
-    m.render(0, 0, renderer, font);
+    m.render(0, 0, renderer);
+    p.render(renderer, 16);
 
     SDL_RenderPresent(renderer);
   }
