@@ -29,3 +29,12 @@ target_link_libraries(
   ${SDL2IMAGE_LIBRARIES}
   ${SDL2TTF_LIBRARIES}
 )
+
+# Copy resources
+add_custom_command(
+  TARGET ${PROJECT_NAME} POST_BUILD
+  COMMENT "Copying resources..."
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+  ${CMAKE_SOURCE_DIR}/res
+  $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
+)
