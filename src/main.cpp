@@ -1,10 +1,73 @@
 #include <cstdio>
+#include <cstdint>
 
 #include <SDL.h>
 #include <SDL_ttf.h>
 
 const int SCREEN_WIDTH  = 640;
 const int SCREEN_HEIGHT = 480;
+
+class Player {
+};
+
+SDL_Texture *textToTexture(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Color color = {0, 0, 0}) {
+  SDL_Surface *surface = TTF_RenderText_Solid(font, text, color);
+  SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+  SDL_FreeSurface(surface); 
+
+  return texture;
+}
+
+class Map {
+  private:
+    uint8_t *map;
+
+    uint32_t width;
+    uint32_t height;
+    uint32_t tileSize;
+
+  public:
+    Map(uint32_t w, uint32_t h, uint32_t tileSize = 16)
+      : width(w)
+      , height(h)
+      , tileSize(tileSize)
+      , map { new uint8_t[w * h] }
+    { }
+
+    ~Map() {
+      delete[] map;
+    }
+
+    uint8_t get(uint32_t x, uint32_t y) {
+      // return map[y * width + x];
+      return (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1);
+    }
+
+    void render(uint32_t ox, uint32_t oy, SDL_Renderer *r, TTF_Font *f) {
+      auto wall  = textToTexture(r, f, "#");
+      auto floor = textToTexture(r, f, ".");
+
+      for (uint32_t y = 0; y < height; y++) {
+        for (uint32_t x = 0; x < width; x++) {
+          SDL_Rect rect {
+            static_cast<int>(ox + x * tileSize),
+            static_cast<int>(oy + y * tileSize),
+            static_cast<int>(tileSize),
+            static_cast<int>(tileSize),
+          };
+
+          if (get(x, y)) {
+            SDL_RenderCopy(r, wall, nullptr, &rect);
+          } else {
+            SDL_RenderCopy(r, floor, nullptr, &rect);
+          }
+        }
+      }
+
+      SDL_DestroyTexture(wall);
+      SDL_DestroyTexture(floor);
+    }
+};
 
 int main() {
   /* All systems go! */
@@ -48,13 +111,8 @@ int main() {
     return 1;
   }
 
-  SDL_Surface *_text = TTF_RenderText_Solid(font, "Hello, world!", {0, 0, 0});
-  SDL_Texture *text = SDL_CreateTextureFromSurface(renderer, _text);
-  SDL_FreeSurface(_text); 
-
-  SDL_Rect text_rect { 100, 100, 0, 0 };
-
-  SDL_QueryTexture(text, nullptr, nullptr, &text_rect.w, &text_rect.h);
+  /* Data */
+  Map m(20, 20);
 
   /* Main loop */
   bool quit = false;
@@ -68,12 +126,13 @@ int main() {
     }
 
     SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, text, nullptr, &text_rect);
+
+    m.render(0, 0, renderer, font);
+
     SDL_RenderPresent(renderer);
   }
 
   TTF_CloseFont(font);
-  SDL_DestroyTexture(text);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
 
