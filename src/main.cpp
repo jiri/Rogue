@@ -2,6 +2,7 @@
 #include <cstdint>
 
 #include <SDL.h>
+#include <SDL_image.h>
 #include <SDL_ttf.h>
 
 const int SCREEN_WIDTH  = 640;
@@ -14,6 +15,26 @@ SDL_Texture *textToTexture(SDL_Renderer *renderer, TTF_Font *font, const char *t
   SDL_Surface *surface = TTF_RenderText_Solid(font, text, color);
   SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
   SDL_FreeSurface(surface); 
+
+  return texture;
+}
+
+SDL_Texture *loadTexture(SDL_Renderer *r, const char *path) {
+  auto load = IMG_Load(path);
+
+  if (load == nullptr) {
+    printf("Failed to load image '%s'.\nIMG_Error: %s\n", path, IMG_GetError());
+    return nullptr;
+  }
+  
+  auto texture = SDL_CreateTextureFromSurface(r, load);
+
+  if (texture == nullptr) {
+    printf("Failed to create texture from '%s'.\nIMG_Error: %s\n", path, SDL_GetError());
+    return nullptr;
+  }
+
+  SDL_FreeSurface(load);
 
   return texture;
 }
@@ -31,21 +52,26 @@ class Map {
       : width(w)
       , height(h)
       , tileSize(tileSize)
-      , map { new uint8_t[w * h] }
-    { }
-
-    ~Map() {
-      delete[] map;
+      , map { new uint8_t [w * h] }
+    {
+      for (uint32_t y = 0; y < height; y++) {
+        for (uint32_t x = 0; x < width; x++) {
+          get(x, y) = (y <= 0 || y >= height - 1 || x <= 0 || x >= width - 1);
+        }
+      }
     }
 
-    uint8_t get(uint32_t x, uint32_t y) {
-      // return map[y * width + x];
-      return (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1);
+    ~Map() {
+      delete [] map;
+    }
+
+    uint8_t & get(uint32_t x, uint32_t y) {
+      return map[y * width + x];
     }
 
     void render(uint32_t ox, uint32_t oy, SDL_Renderer *r, TTF_Font *f) {
-      auto wall  = textToTexture(r, f, "#");
-      auto floor = textToTexture(r, f, ".");
+      auto wall  = loadTexture(r, "res/wall.png");
+      auto floor = loadTexture(r, "res/floor.png");
 
       for (uint32_t y = 0; y < height; y++) {
         for (uint32_t x = 0; x < width; x++) {
@@ -78,6 +104,11 @@ int main() {
 
   if (TTF_Init() < 0) {
     printf("Failed to initialize SDL_ttf.\nTTF_Error: %s\n", TTF_GetError());
+    return 1;
+  }
+
+  if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) {
+    printf("Failed to initialize SDL_image.\nIMG_Error: %s\n", IMG_GetError());
     return 1;
   }
 
