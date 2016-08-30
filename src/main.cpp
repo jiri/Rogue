@@ -168,7 +168,7 @@ int main() {
   }
 
   /* Create the renderer */
-  SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+  SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
   if (renderer == nullptr) {
     printf("Failed to create rederer.\nSDL_Error: %s\n", SDL_GetError());
