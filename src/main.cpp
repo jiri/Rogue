@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include <SDL.h>
 #include <SDL_image.h>
@@ -84,12 +85,60 @@ class TileSet {
     }
 };
 
+class Entity {
+  public:
+    uint32_t x;
+    uint32_t y;
+
+    Entity(uint32_t x, uint32_t y)
+      : x(x)
+      , y(y)
+    { }
+
+    virtual bool interact() {
+      printf("Hello, world!");
+      return true;
+    }
+
+    virtual void render(uint32_t ox, uint32_t oy) const {
+      /* ... */
+    }
+};
+
+class Obelisk : public Entity {
+  private:
+    SDL_Renderer *r;
+    SDL_Texture *texture;
+
+  public:
+    Obelisk(uint32_t x, uint32_t y, SDL_Renderer *r) : Entity(x, y), r(r) {
+      texture = loadTexture(r, "res/obelisk.png");
+    }
+
+    bool interact() override {
+      printf("There is something inscribed on the obelisk in an acient language. You can't read it for shit.");
+      return true;
+    }
+
+    void render(uint32_t ox, uint32_t oy) const override {
+      SDL_Rect rect {
+        static_cast<int>(ox + x * 16),
+        static_cast<int>(oy + y * 16 - 8),
+        static_cast<int>(16),
+        static_cast<int>(24),
+      };
+
+      SDL_RenderCopy(r, texture, nullptr, &rect);
+    }
+};
+
 class Map {
   friend class Camera;
 
   private:
     TileSet tileSet;
     Tile *map;
+    std::vector<Entity *> entities;
 
     uint32_t width;
     uint32_t height;
@@ -113,10 +162,16 @@ class Map {
           }
         }
       }
+
+      entities.push_back(new Obelisk { 5, 5, r });
     }
 
     ~Map() {
       delete [] map;
+
+      for (auto e : entities) {
+        delete e;
+      }
     }
 
     Tile & get(uint32_t x, uint32_t y) {
@@ -133,6 +188,10 @@ class Map {
           auto tile = get(x, y);
           tileSet.render(ox, oy, x, y, tile);
         }
+      }
+
+      for (auto e : entities) {
+        e->render(ox, oy);
       }
     }
 };
