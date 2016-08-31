@@ -37,75 +37,96 @@ SDL_Texture *loadTexture(SDL_Renderer *r, std::string path) {
   return texture;
 }
 
-class Tile {
+struct Tile {
+  uint32_t id;
+  bool passable;
+};
+
+const uint32_t TILESET_SIZE = 8;
+
+class TileSet {
   private:
+    SDL_Renderer *renderer;
     SDL_Texture *texture;
 
+    uint32_t tileSize;
+
   public:
-    Tile(SDL_Renderer *r, std::string name) {
-      texture = loadTexture(r, "res/" + name + ".png");
+    TileSet(SDL_Renderer *r, std::string name, uint32_t tileSize = 16)
+      : renderer(r)
+      , tileSize(tileSize)
+    {
+      texture = loadTexture(renderer, "res/" + name + ".png");
+
+      SDL_RenderCopy(renderer, texture, nullptr, nullptr);
     }
 
-    ~Tile() {
+    ~TileSet() {
       SDL_DestroyTexture(texture);
     }
 
-    void render(SDL_Renderer *r, SDL_Rect *rect) {
-      SDL_RenderCopy(r, texture, nullptr, rect);
+    void render(uint32_t x, uint32_t y, const Tile & tile) {
+      SDL_Rect srcRect {
+        static_cast<int>(tile.id % 8 * tileSize),    
+        static_cast<int>(tile.id / 8 * tileSize),
+        static_cast<int>(tileSize),
+        static_cast<int>(tileSize),
+      };
+
+      SDL_Rect dstRect {
+        static_cast<int>(x * tileSize),
+        static_cast<int>(y * tileSize),
+        static_cast<int>(tileSize),
+        static_cast<int>(tileSize),
+      };
+
+      SDL_RenderCopy(renderer, texture, &srcRect, &dstRect);
     }
 };
 
 class Map {
   private:
-    Tile **map;
+    TileSet tileSet;
+    Tile *map;
 
     uint32_t width;
     uint32_t height;
     uint32_t tileSize;
 
   public:
-    Map(SDL_Renderer *r, uint32_t w, uint32_t h, uint32_t tileSize = 16)
+    Map(uint32_t w, uint32_t h, SDL_Renderer *r, std::string ts)
       : width(w)
       , height(h)
-      , tileSize(tileSize)
-      , map { new Tile * [w * h] }
+      , tileSet(r, ts)
+      , map { new Tile [w * h] }
     {
       for (uint32_t y = 0; y < height; y++) {
         for (uint32_t x = 0; x < width; x++) {
           if (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1) {
-            map[y * width + x] = new Tile(r, "wall");
+            map[y * width + x] = Tile { 1, false };
+          } else if (y == 1) {
+            map[y * width + x] = Tile { 2, false  };
           } else {
-            map[y * width + x] = new Tile(r, "floor");
+            map[y * width + x] = Tile { 0, true  };
           }
         }
       }
     }
 
     ~Map() {
-      for (uint32_t y = 0; y < height; y++) {
-        for (uint32_t x = 0; x < width; x++) {
-          delete map[y * width + x];
-        }
-      }
-
       delete [] map;
     }
 
-    Tile * get(uint32_t x, uint32_t y) {
+    Tile & get(uint32_t x, uint32_t y) {
       return map[y * width + x];
     }
 
-    void render(uint32_t ox, uint32_t oy, SDL_Renderer *r) {
+    void render(uint32_t ox, uint32_t oy) {
       for (uint32_t y = 0; y < height; y++) {
         for (uint32_t x = 0; x < width; x++) {
-          SDL_Rect rect {
-            static_cast<int>(ox + x * tileSize),
-            static_cast<int>(oy + y * tileSize),
-            static_cast<int>(tileSize),
-            static_cast<int>(tileSize),
-          };
-
-          get(x, y)->render(r, &rect);
+          auto tile = get(x, y);
+      //     printf("rendering tile#%d\n", tile.id);
+          tileSet.render(x, y, tile);
         }
       }
     }
@@ -136,7 +157,6 @@ class Player {
       SDL_RenderCopy(r, texture, nullptr, &rect);
     }
 };
-
 
 int main() {
   /* All systems go! */
@@ -176,6 +196,7 @@ int main() {
   }
 
   SDL_SetRenderDrawColor(renderer, 0x33, 0x33, 0x33, 0xFF);
+  SDL_RenderSetScale(renderer, 2.0f, 2.0f);
 
   /* Set up text rendering */
   TTF_Font *font = TTF_OpenFont("res/PxPlus_IBM_VGA8.ttf", 28);
@@ -186,7 +207,7 @@ int main() {
   }
 
   /* Data */
-  Map m(renderer, 20, 20);
+  Map m(20, 20, renderer, "tiles");
   Player p(renderer, 5, 5);
 
   /* Main loop */
@@ -213,7 +234,7 @@ int main() {
 
     SDL_RenderClear(renderer);
 
-    m.render(0, 0, renderer);
+    m.render(0, 0);
     p.render(renderer, 16);
 
     SDL_RenderPresent(renderer);
