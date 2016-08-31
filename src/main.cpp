@@ -128,7 +128,7 @@ class Obelisk : public Entity {
     }
 
     bool interact() override {
-      printf("There is something inscribed on the obelisk in an acient language. You can't read it for shit.");
+      printf("There is something inscribed on the obelisk in an acient language. You can't read it for shit.\n");
       return true;
     }
 
@@ -220,6 +220,16 @@ class Map {
 
       return false;
     }
+
+    Entity * getEntity(uint32_t x, uint32_t y) {
+      for (auto e : entities) {
+        if (e->x == x && e->y == y) {
+          return e;
+        }
+      }
+
+      return nullptr;
+    }
 };
 
 class Player {
@@ -251,10 +261,10 @@ class Player {
 class PlayerController {
   private:
     Player &player;
-    const Map &map;
+    Map &map;
 
   public:
-    PlayerController(Player &p, const Map &m)
+    PlayerController(Player &p, Map &m)
       : player(p)
       , map(m)
     { }
@@ -272,6 +282,14 @@ class PlayerController {
         case SDLK_RIGHT: dx =  1; break;
         case SDLK_UP:    dy = -1; break;
         case SDLK_DOWN:  dy =  1; break;
+
+        case SDLK_SPACE:
+          /* FIXME */
+          auto e = map.getEntity(player.x, player.y - 1);
+          if (e != nullptr) {
+            e->interact();
+          }
+          break;
       }
 
       if (map.passable(player.x + dx, player.y + dy)) {
