@@ -240,21 +240,33 @@ class Player {
     uint32_t x;
     uint32_t y;
 
+    enum Direction { N, E, S, W };
+
+    Direction direction;
+
     Player(SDL_Renderer *r, uint32_t x, uint32_t y)
       : x(x)
       , y(y)
       , texture { loadTexture(r, "res/player.png") }
+      , direction(N)
     { }
 
     void render(SDL_Renderer *r, uint32_t tileSize, uint32_t x, uint32_t y) const {
-      SDL_Rect rect {
+      SDL_Rect srcRect {
+        static_cast<int>(direction * 16),
+        static_cast<int>(0),
+        static_cast<int>(tileSize),
+        static_cast<int>(tileSize * 1.5),
+      };
+
+      SDL_Rect dstRect {
         static_cast<int>(x),
         static_cast<int>(y),
         static_cast<int>(tileSize),
         static_cast<int>(tileSize * 1.5),
       };
 
-      SDL_RenderCopy(r, texture, nullptr, &rect);
+      SDL_RenderCopy(r, texture, &srcRect, &dstRect);
     }
 };
 
@@ -278,18 +290,26 @@ class PlayerController {
       }
 
       switch (e.key.keysym.sym) {
-        case SDLK_LEFT:  dx = -1; break;
-        case SDLK_RIGHT: dx =  1; break;
-        case SDLK_UP:    dy = -1; break;
-        case SDLK_DOWN:  dy =  1; break;
+        case SDLK_LEFT:  player.direction = Player::W; dx = -1; break;
+        case SDLK_RIGHT: player.direction = Player::E; dx =  1; break;
+        case SDLK_UP:    player.direction = Player::N; dy = -1; break;
+        case SDLK_DOWN:  player.direction = Player::S; dy =  1; break;
 
         case SDLK_SPACE:
-          /* FIXME */
-          auto e = map.getEntity(player.x, player.y - 1);
+          switch (player.direction) {
+            case Player::N: dy = -1; break;
+            case Player::E: dx =  1; break;
+            case Player::S: dy =  1; break;
+            case Player::W: dx = -1; break;
+          }
+
+          auto e = map.getEntity(player.x + dx, player.y + dy);
+
           if (e != nullptr) {
             e->interact();
           }
-          break;
+
+          return true;
       }
 
       if (map.passable(player.x + dx, player.y + dy)) {
