@@ -163,13 +163,13 @@ class Player {
     }
 };
 
-class PlayerMover {
+class PlayerController {
   private:
     Player &player;
     const Map &map;
 
   public:
-    PlayerMover(Player &p, const Map &m)
+    PlayerController(Player &p, const Map &m)
       : player(p)
       , map(m)
     { }
@@ -297,7 +297,7 @@ int main() {
   Map m(20, 20, renderer, "tiles");
   Player p(renderer, 1, 2);
 
-  PlayerMover pm { p, m };
+  PlayerController pm { p, m };
 
   Camera c { p, m };
 
