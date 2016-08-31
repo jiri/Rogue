@@ -100,14 +100,25 @@ class Entity {
 
     virtual ~Entity() { }
 
-    virtual bool interact() {
-      printf("Hello, world!");
-      return true;
-    }
+    virtual bool interact() = 0;
 
-    virtual void render(uint32_t ox, uint32_t oy) const {
-      /* ... */
-    }
+    virtual void render(uint32_t ox, uint32_t oy) const = 0;
+};
+
+enum Orientation { N = 0, E, S, W };
+
+class OrientedEntity : public Entity {
+  public:
+    Orientation orientation;
+
+    OrientedEntity(uint32_t x, uint32_t y, bool p, Orientation o = Orientation::N)
+      : Entity(x, y, p)
+      , orientation(o)
+    { }
+
+    virtual bool interact() = 0;
+
+    virtual void render(uint32_t ox, uint32_t oy) const = 0;
 };
 
 class Obelisk : public Entity {
@@ -232,38 +243,36 @@ class Map {
     }
 };
 
-class Player {
+class Player : public OrientedEntity {
   private:
+    SDL_Renderer *r;
     SDL_Texture *texture;
 
   public:
-    uint32_t x;
-    uint32_t y;
-
-    enum Direction { N, E, S, W };
-
-    Direction direction;
 
     Player(SDL_Renderer *r, uint32_t x, uint32_t y)
-      : x(x)
-      , y(y)
+      : OrientedEntity(x, y, false)
+      , r(r)
       , texture { loadTexture(r, "res/player.png") }
-      , direction(N)
     { }
 
-    void render(SDL_Renderer *r, uint32_t tileSize, uint32_t x, uint32_t y) const {
+    bool interact() override {
+      return false;
+    };
+
+    void render(uint32_t ox, uint32_t oy) const override {
       SDL_Rect srcRect {
-        static_cast<int>(direction * 16),
+        static_cast<int>(orientation * 16),
         static_cast<int>(0),
-        static_cast<int>(tileSize),
-        static_cast<int>(tileSize * 1.5),
+        static_cast<int>(16),
+        static_cast<int>(24),
       };
 
       SDL_Rect dstRect {
-        static_cast<int>(x),
-        static_cast<int>(y),
-        static_cast<int>(tileSize),
-        static_cast<int>(tileSize * 1.5),
+        static_cast<int>(ox),
+        static_cast<int>(oy),
+        static_cast<int>(16),
+        static_cast<int>(24),
       };
 
       SDL_RenderCopy(r, texture, &srcRect, &dstRect);
@@ -290,17 +299,17 @@ class PlayerController {
       }
 
       switch (e.key.keysym.sym) {
-        case SDLK_LEFT:  player.direction = Player::W; dx = -1; break;
-        case SDLK_RIGHT: player.direction = Player::E; dx =  1; break;
-        case SDLK_UP:    player.direction = Player::N; dy = -1; break;
-        case SDLK_DOWN:  player.direction = Player::S; dy =  1; break;
+        case SDLK_LEFT:  player.orientation = W; dx = -1; break;
+        case SDLK_RIGHT: player.orientation = E; dx =  1; break;
+        case SDLK_UP:    player.orientation = N; dy = -1; break;
+        case SDLK_DOWN:  player.orientation = S; dy =  1; break;
 
         case SDLK_SPACE:
-          switch (player.direction) {
-            case Player::N: dy = -1; break;
-            case Player::E: dx =  1; break;
-            case Player::S: dy =  1; break;
-            case Player::W: dx = -1; break;
+          switch (player.orientation) {
+            case N: dy = -1; break;
+            case E: dx =  1; break;
+            case S: dy =  1; break;
+            case W: dx = -1; break;
           }
 
           auto e = map.getEntity(player.x + dx, player.y + dy);
@@ -343,8 +352,7 @@ class Camera {
         SCREEN_WIDTH  / 4 - x,
         SCREEN_HEIGHT / 4 - y
       );
-      player.render(r,
-        map.tileSet.tileSize,
+      player.render(
         SCREEN_WIDTH  / 4 - x + player.x * map.tileSet.tileSize,
         SCREEN_HEIGHT / 4 - y + player.y * map.tileSet.tileSize - 8
       );
