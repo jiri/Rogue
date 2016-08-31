@@ -175,7 +175,7 @@ int main() {
     return 1;
   }
 
-  SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+  SDL_SetRenderDrawColor(renderer, 0x33, 0x33, 0x33, 0xFF);
 
   /* Set up text rendering */
   TTF_Font *font = TTF_OpenFont("res/PxPlus_IBM_VGA8.ttf", 28);
