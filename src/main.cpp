@@ -279,14 +279,14 @@ class Player : public OrientedEntity {
     }
 };
 
-class PlayerController {
+class OrientedEntityController {
   private:
-    Player &player;
+    OrientedEntity &entity;
     Map &map;
 
   public:
-    PlayerController(Player &p, Map &m)
-      : player(p)
+    OrientedEntityController(OrientedEntity &e, Map &m)
+      : entity(e)
       , map(m)
     { }
 
@@ -299,20 +299,20 @@ class PlayerController {
       }
 
       switch (e.key.keysym.sym) {
-        case SDLK_LEFT:  player.orientation = W; dx = -1; break;
-        case SDLK_RIGHT: player.orientation = E; dx =  1; break;
-        case SDLK_UP:    player.orientation = N; dy = -1; break;
-        case SDLK_DOWN:  player.orientation = S; dy =  1; break;
+        case SDLK_LEFT:  entity.orientation = W; dx = -1; break;
+        case SDLK_RIGHT: entity.orientation = E; dx =  1; break;
+        case SDLK_UP:    entity.orientation = N; dy = -1; break;
+        case SDLK_DOWN:  entity.orientation = S; dy =  1; break;
 
         case SDLK_SPACE:
-          switch (player.orientation) {
+          switch (entity.orientation) {
             case N: dy = -1; break;
             case E: dx =  1; break;
             case S: dy =  1; break;
             case W: dx = -1; break;
           }
 
-          auto e = map.getEntity(player.x + dx, player.y + dy);
+          auto e = map.getEntity(entity.x + dx, entity.y + dy);
 
           if (e != nullptr) {
             e->interact();
@@ -321,9 +321,9 @@ class PlayerController {
           return true;
       }
 
-      if (map.passable(player.x + dx, player.y + dy)) {
-        player.x += dx;
-        player.y += dy;
+      if (map.passable(entity.x + dx, entity.y + dy)) {
+        entity.x += dx;
+        entity.y += dy;
       }
       
       return true;
@@ -428,7 +428,7 @@ int main() {
   Map m(20, 20, renderer, "tiles");
   Player p(renderer, 1, 2);
 
-  PlayerController pm { p, m };
+  OrientedEntityController controller { p, m };
 
   Camera c { p, m };
 
@@ -449,7 +449,7 @@ int main() {
           break;
       }
 
-      pm.processEvent(e);
+      controller.processEvent(e);
     }
 
     uint32_t current = SDL_GetTicks();
