@@ -153,9 +153,9 @@ class Player {
     void render(SDL_Renderer *r, uint32_t tileSize) {
       SDL_Rect rect {
         static_cast<int>(x * tileSize),
-        static_cast<int>(y * tileSize),
+        static_cast<int>(y * tileSize - 8),
         static_cast<int>(tileSize),
-        static_cast<int>(tileSize),
+        static_cast<int>(tileSize * 1.5),
       };
 
       SDL_RenderCopy(r, texture, nullptr, &rect);
