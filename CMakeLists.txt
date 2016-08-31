@@ -2,7 +2,7 @@ project(rogue)
 
 cmake_minimum_required(VERSION 3.1)
 
-#set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_STANDARD 14)
 
 # Make targets
@@ -28,4 +28,13 @@ target_link_libraries(
   ${SDL2_LIBRARIES}
   ${SDL2IMAGE_LIBRARIES}
   ${SDL2TTF_LIBRARIES}
+)
+
+# Copy resources
+add_custom_command(
+  TARGET ${PROJECT_NAME} POST_BUILD
+  COMMENT "Copying resources..."
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+  ${CMAKE_SOURCE_DIR}/res
+  $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
 )
