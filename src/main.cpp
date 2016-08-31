@@ -203,20 +203,46 @@ class Camera {
     const Player &player;
     const Map &map;
 
+    uint32_t x;
+    uint32_t y;
+
   public:
     Camera(const Player &p, const Map &m)
       : player(p)
       , map(m)
+      , x(0)
+      , y(0)
     {
-    };
+    }
 
     void render(SDL_Renderer *r) {
       map.render(
-         SCREEN_WIDTH / 4  - player.x * map.tileSet.tileSize - 8,
-         SCREEN_HEIGHT / 4 - player.y * map.tileSet.tileSize
+        SCREEN_WIDTH  / 4 - x,
+        SCREEN_HEIGHT / 4 - y
       );
-      player.render(r, map.tileSet.tileSize, SCREEN_WIDTH / 4 - 8, SCREEN_HEIGHT / 4 - 12);
-    };
+      player.render(r,
+        map.tileSet.tileSize,
+        SCREEN_WIDTH  / 4 - x + player.x * map.tileSet.tileSize,
+        SCREEN_HEIGHT / 4 - y + player.y * map.tileSet.tileSize - 8
+      );
+    }
+
+    void updatePosition(float delta) {
+      int32_t dx = player.x * map.tileSet.tileSize - x;
+      int32_t dy = player.y * map.tileSet.tileSize - y;
+
+      if (dx < 0) {
+        x = floor(x + delta * dx);
+      } else {
+        x = ceil(x + delta * dx);
+      }
+
+      if (dy < 0) {
+        y = floor(y + delta * dy);
+      } else {
+        y = ceil(y + delta * dy);
+      }
+    }
 };
 
 int main() {
@@ -279,6 +305,8 @@ int main() {
   bool quit = false;
   SDL_Event e;
 
+  uint32_t time = SDL_GetTicks();
+
   while (!quit) {
     while (SDL_PollEvent(&e) != 0) {
       switch (e.type) {
@@ -293,9 +321,14 @@ int main() {
       pm.processEvent(e);
     }
 
+    uint32_t current = SDL_GetTicks();
+    float delta = (current - time) / 1000.0f;
+    time = current;
+
     SDL_RenderClear(renderer);
 
     c.render(renderer);
+    c.updatePosition(delta);
 
     SDL_RenderPresent(renderer);
   }
