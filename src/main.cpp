@@ -5,13 +5,8 @@
 #include <string>
 #include <vector>
 
-#include <SDL.h>
-#include <SDL_image.h>
-#include <SDL_ttf.h>
-
 #define GLEW_STATIC
 #include <GL/glew.h>
-
 #include <GLFW/glfw3.h>
 
 #include <Shader.h>
@@ -19,6 +14,7 @@
 const int SCREEN_WIDTH  = 640;
 const int SCREEN_HEIGHT = 480;
 
+#if 0
 SDL_Texture *textToTexture(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Color color = {0, 0, 0}) {
   SDL_Surface *surface = TTF_RenderText_Solid(font, text, color);
   SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
@@ -384,6 +380,7 @@ class Camera {
       }
     }
 };
+#endif
 
 int main() {
   /* Initialize GLFW */
