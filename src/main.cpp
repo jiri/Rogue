@@ -139,7 +139,7 @@ class Obelisk : public Entity {
     }
 
     bool interact() override {
-      printf("There is something inscribed on the obelisk in an acient language. You can't read it for shit.\n");
+      printf("Stuff is inscribed in the stone in an acient script. You can't read it for shit.\n");
       return true;
     }
 
