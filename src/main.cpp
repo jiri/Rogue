@@ -121,6 +121,10 @@ class Map {
       return map[y * width + x];
     }
 
+    const Tile & get(uint32_t x, uint32_t y) const {
+      return map[y * width + x];
+    }
+
     void render(uint32_t ox, uint32_t oy) {
       for (uint32_t y = 0; y < height; y++) {
         for (uint32_t x = 0; x < width; x++) {
@@ -155,6 +159,41 @@ class Player {
       };
 
       SDL_RenderCopy(r, texture, nullptr, &rect);
+    }
+};
+
+class PlayerMover {
+  private:
+    Player &player;
+    const Map &map;
+
+  public:
+    PlayerMover(Player &p, const Map &m)
+      : player(p)
+      , map(m)
+    { }
+
+    bool processEvent(SDL_Event &e) {
+      int dx = 0;
+      int dy = 0;
+
+      if (e.type != SDL_KEYDOWN) {
+        return false;
+      }
+
+      switch (e.key.keysym.sym) {
+        case SDLK_LEFT:  dx = -1; break;
+        case SDLK_RIGHT: dx =  1; break;
+        case SDLK_UP:    dy = -1; break;
+        case SDLK_DOWN:  dy =  1; break;
+      }
+
+      if (map.get(player.x + dx, player.y + dy).passable) {
+        player.x += dx;
+        player.y += dy;
+      }
+      
+      return true;
     }
 };
 
@@ -210,6 +249,8 @@ int main() {
   Map m(20, 20, renderer, "tiles");
   Player p(renderer, 5, 5);
 
+  PlayerMover pm { p, m };
+
   /* Main loop */
   bool quit = false;
   SDL_Event e;
@@ -221,15 +262,11 @@ int main() {
           quit = true;
           break;
 
-        case SDL_KEYDOWN:
-          switch (e.key.keysym.sym) {
-            case SDLK_LEFT:  p.x--; break;
-            case SDLK_RIGHT: p.x++; break;
-            case SDLK_UP:    p.y--; break;
-            case SDLK_DOWN:  p.y++; break;
-          }
+        default:
           break;
       }
+
+      pm.processEvent(e);
     }
 
     SDL_RenderClear(renderer);
