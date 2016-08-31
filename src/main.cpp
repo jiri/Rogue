@@ -49,9 +49,9 @@ class TileSet {
     SDL_Renderer *renderer;
     SDL_Texture *texture;
 
-    uint32_t tileSize;
-
   public:
+    const uint32_t tileSize;
+
     TileSet(SDL_Renderer *r, std::string name, uint32_t tileSize = 16)
       : renderer(r)
       , tileSize(tileSize)
@@ -65,7 +65,7 @@ class TileSet {
       SDL_DestroyTexture(texture);
     }
 
-    void render(uint32_t x, uint32_t y, const Tile & tile) {
+    void render(uint32_t ox, uint32_t oy, uint32_t x, uint32_t y, const Tile & tile) const {
       SDL_Rect srcRect {
         static_cast<int>(tile.id % 8 * tileSize),    
         static_cast<int>(tile.id / 8 * tileSize),
@@ -74,8 +74,8 @@ class TileSet {
       };
 
       SDL_Rect dstRect {
-        static_cast<int>(x * tileSize),
-        static_cast<int>(y * tileSize),
+        static_cast<int>(ox + x * tileSize),
+        static_cast<int>(oy + y * tileSize),
         static_cast<int>(tileSize),
         static_cast<int>(tileSize),
       };
@@ -85,6 +85,8 @@ class TileSet {
 };
 
 class Map {
+  friend class Camera;
+
   private:
     TileSet tileSet;
     Tile *map;
@@ -125,12 +127,11 @@ class Map {
       return map[y * width + x];
     }
 
-    void render(uint32_t ox, uint32_t oy) {
+    void render(uint32_t ox, uint32_t oy) const {
       for (uint32_t y = 0; y < height; y++) {
         for (uint32_t x = 0; x < width; x++) {
           auto tile = get(x, y);
-      //     printf("rendering tile#%d\n", tile.id);
-          tileSet.render(x, y, tile);
+          tileSet.render(ox, oy, x, y, tile);
         }
       }
     }
@@ -150,10 +151,10 @@ class Player {
       , texture { loadTexture(r, "res/player.png") }
     { }
 
-    void render(SDL_Renderer *r, uint32_t tileSize) {
+    void render(SDL_Renderer *r, uint32_t tileSize, uint32_t x, uint32_t y) const {
       SDL_Rect rect {
-        static_cast<int>(x * tileSize),
-        static_cast<int>(y * tileSize - 8),
+        static_cast<int>(x),
+        static_cast<int>(y),
         static_cast<int>(tileSize),
         static_cast<int>(tileSize * 1.5),
       };
@@ -195,6 +196,27 @@ class PlayerMover {
       
       return true;
     }
+};
+
+class Camera {
+  private:
+    const Player &player;
+    const Map &map;
+
+  public:
+    Camera(const Player &p, const Map &m)
+      : player(p)
+      , map(m)
+    {
+    };
+
+    void render(SDL_Renderer *r) {
+      map.render(
+         SCREEN_WIDTH / 4  - player.x * map.tileSet.tileSize - 8,
+         SCREEN_HEIGHT / 4 - player.y * map.tileSet.tileSize
+      );
+      player.render(r, map.tileSet.tileSize, SCREEN_WIDTH / 4 - 8, SCREEN_HEIGHT / 4 - 12);
+    };
 };
 
 int main() {
@@ -247,9 +269,11 @@ int main() {
 
   /* Data */
   Map m(20, 20, renderer, "tiles");
-  Player p(renderer, 5, 5);
+  Player p(renderer, 1, 2);
 
   PlayerMover pm { p, m };
+
+  Camera c { p, m };
 
   /* Main loop */
   bool quit = false;
@@ -271,8 +295,7 @@ int main() {
 
     SDL_RenderClear(renderer);
 
-    m.render(0, 0);
-    p.render(renderer, 16);
+    c.render(renderer);
 
     SDL_RenderPresent(renderer);
   }
