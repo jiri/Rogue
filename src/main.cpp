@@ -1,11 +1,20 @@
 #include <cstdio>
 #include <cstdint>
+
+#include <iostream>
 #include <string>
 #include <vector>
 
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
+
+#define GLEW_STATIC
+#include <GL/glew.h>
+
+#include <GLFW/glfw3.h>
+
+#include <Shader.h>
 
 const int SCREEN_WIDTH  = 640;
 const int SCREEN_HEIGHT = 480;
@@ -377,53 +386,42 @@ class Camera {
 };
 
 int main() {
-  /* All systems go! */
-  if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
-    printf("Failed to initilize SDL.\nSDL_Error: %s\n", SDL_GetError());
-    return 1;
-  }
+  /* Initialize GLFW */
+  glfwInit();
 
-  if (TTF_Init() < 0) {
-    printf("Failed to initialize SDL_ttf.\nTTF_Error: %s\n", TTF_GetError());
-    return 1;
-  }
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-  if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) {
-    printf("Failed to initialize SDL_image.\nIMG_Error: %s\n", IMG_GetError());
-    return 1;
-  }
+  /* VSync on */
+  glfwSwapInterval(1);
 
   /* Create the window */
-  SDL_Window *window = SDL_CreateWindow("Rogue",
-    SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-    SCREEN_WIDTH, SCREEN_HEIGHT,
-    SDL_WINDOW_SHOWN
-  );
+  GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Rogue", nullptr, nullptr);
 
   if (window == nullptr) {
-    printf("Failed to create window.\nSDL_Error: %s\n", SDL_GetError());
-    return 1;
+    fprintf(stderr, "Failed to create GLFW window.\n");
+    glfwTerminate();
+    return -1;
   }
 
-  /* Create the renderer */
-  SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  glfwMakeContextCurrent(window);
 
-  if (renderer == nullptr) {
-    printf("Failed to create rederer.\nSDL_Error: %s\n", SDL_GetError());
-    return 1;
+  /* Initialize GLEW */
+  glewExperimental = GL_TRUE;
+  if (glewInit() != GLEW_OK) {
+    printf("Failed to initialize GLEW.\n");
+    return -1;
   }
 
-  SDL_SetRenderDrawColor(renderer, 0x33, 0x33, 0x33, 0xFF);
-  SDL_RenderSetScale(renderer, 2.0f, 2.0f);
+  /* Set the viewport */
+  int width, height;
+  glfwGetFramebufferSize(window, &width, &height);
+  glViewport(0, 0, width, height);
 
-  /* Set up text rendering */
-  TTF_Font *font = TTF_OpenFont("res/PxPlus_IBM_VGA8.ttf", 28);
-
-  if (font == nullptr) {
-    printf("Failed to load font.\nTTF_Error: %s\n", TTF_GetError());
-    return 1;
-  }
-
+#if 0
   /* Data */
   Map m(20, 20, renderer, "tiles");
   Player p(renderer, 1, 2);
@@ -431,7 +429,9 @@ int main() {
   OrientedEntityController controller { p, m };
 
   Camera c { p, m };
+#endif
 
+#if 0
   /* Main loop */
   bool quit = false;
   SDL_Event e;
@@ -439,18 +439,7 @@ int main() {
   uint32_t time = SDL_GetTicks();
 
   while (!quit) {
-    while (SDL_PollEvent(&e) != 0) {
-      switch (e.type) {
-        case SDL_QUIT:
-          quit = true;
-          break;
-
-        default:
-          break;
-      }
-
-      controller.processEvent(e);
-    }
+    controller.processEvent(e);
 
     uint32_t current = SDL_GetTicks();
     float delta = (current - time) / 1000.0f;
@@ -463,11 +452,55 @@ int main() {
 
     SDL_RenderPresent(renderer);
   }
+#endif
 
-  TTF_CloseFont(font);
-  SDL_DestroyRenderer(renderer);
-  SDL_DestroyWindow(window);
+  Shader program("res/simple.vsh", "res/simple.fsh");
 
-  TTF_Quit();
-  SDL_Quit();
+  GLfloat vertices[] = {
+     // First triangle
+    -0.5f, -0.5f, 0.0f,
+    -0.5f,  0.5f, 0.0f,
+     0.5f,  0.5f, 0.0f,
+     // Second triangle
+     0.5f,  0.5f, 0.0f,
+    -0.5f, -0.5f, 0.0f,
+     0.5f, -0.5f, 0.0f,
+  };
+
+  GLuint VBO, VAO;
+  glGenVertexArrays(1, &VAO);
+  glGenBuffers(1, &VBO);
+  glBindVertexArray(VAO);
+
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+  glEnableVertexAttribArray(0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  glBindVertexArray(0);
+
+  while(!glfwWindowShouldClose(window)) {
+    glfwPollEvents();
+
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    program.use();
+
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+
+    program.disuse();
+    
+
+    glfwSwapBuffers(window);
+  }
+
+  /* Cleanup */
+  glfwTerminate();
+  return 0;
 }

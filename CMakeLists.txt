@@ -6,15 +6,17 @@ set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_STANDARD 14)
 
 # Make targets
+include_directories(inc)
 add_executable(
   ${PROJECT_NAME}
   src/main.cpp
+  src/Shader.cpp
 )
 
 # Set up libraries
 find_package(OpenGL REQUIRED)
-find_package(GLEW REQUIRED)
-find_package(GLM REQUIRED)
+find_package(glew REQUIRED STATIC)
+find_package(glm REQUIRED)
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLFW REQUIRED glfw3)
