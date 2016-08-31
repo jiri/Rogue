@@ -90,10 +90,15 @@ class Entity {
     uint32_t x;
     uint32_t y;
 
-    Entity(uint32_t x, uint32_t y)
+    bool passable;
+
+    Entity(uint32_t x, uint32_t y, bool p)
       : x(x)
       , y(y)
+      , passable(p)
     { }
+
+    virtual ~Entity() { }
 
     virtual bool interact() {
       printf("Hello, world!");
@@ -111,8 +116,15 @@ class Obelisk : public Entity {
     SDL_Texture *texture;
 
   public:
-    Obelisk(uint32_t x, uint32_t y, SDL_Renderer *r) : Entity(x, y), r(r) {
+    Obelisk(uint32_t x, uint32_t y, SDL_Renderer *r)
+      : Entity(x, y, false)
+      , r(r)
+    {
       texture = loadTexture(r, "res/obelisk.png");
+    }
+
+    ~Obelisk() {
+      SDL_DestroyTexture(texture);
     }
 
     bool interact() override {
@@ -194,6 +206,20 @@ class Map {
         e->render(ox, oy);
       }
     }
+
+    bool passable(uint32_t x, uint32_t y) const {
+      if (get(x, y).passable) {
+        for (auto e : entities) {
+          if (e->x == x && e->y == y && e->passable == false) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+
+      return false;
+    }
 };
 
 class Player {
@@ -248,7 +274,7 @@ class PlayerController {
         case SDLK_DOWN:  dy =  1; break;
       }
 
-      if (map.get(player.x + dx, player.y + dy).passable) {
+      if (map.passable(player.x + dx, player.y + dy)) {
         player.x += dx;
         player.y += dy;
       }
