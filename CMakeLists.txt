@@ -36,6 +36,19 @@ target_link_libraries(
   ${GLFW_LIBRARIES}
 )
 
+# Set up SOIL
+add_library(soil STATIC
+  SOIL/src/image_helper.c
+  SOIL/src/stb_image_aug.c
+  SOIL/src/image_DXT.c
+  SOIL/src/SOIL.c
+)
+target_link_libraries(soil
+  "-framework CoreFoundation"
+)
+include_directories(SOIL/src/)
+target_link_libraries(${PROJECT_NAME} soil)
+
 # Copy resources
 add_custom_command(
   TARGET ${PROJECT_NAME} POST_BUILD
