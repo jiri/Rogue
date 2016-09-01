@@ -15,7 +15,7 @@ add_executable(
 
 # Set up libraries
 find_package(OpenGL REQUIRED)
-find_package(glew REQUIRED STATIC)
+find_package(GLEW REQUIRED STATIC)
 find_package(glm REQUIRED)
 
 find_package(PkgConfig REQUIRED)
@@ -43,15 +43,19 @@ add_library(soil STATIC
   SOIL/src/image_DXT.c
   SOIL/src/SOIL.c
 )
-target_link_libraries(soil
-  "-framework CoreFoundation"
-)
+
+if (APPLE)
+  target_link_libraries(soil
+    "-framework CoreFoundation"
+  )
+endif ()
+
 include_directories(SOIL/src/)
 target_link_libraries(${PROJECT_NAME} soil)
 
 # Copy resources
 add_custom_command(
-  TARGET ${PROJECT_NAME} POST_BUILD
+  TARGET ${PROJECT_NAME} PRE_BUILD
   COMMENT "Copying resources..."
   COMMAND ${CMAKE_COMMAND} -E copy_directory
   ${CMAKE_SOURCE_DIR}/res

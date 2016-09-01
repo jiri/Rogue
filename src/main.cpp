@@ -10,6 +10,10 @@
 #include <GLFW/glfw3.h>
 #include <SOIL.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/transform.hpp>
+
 #include <Shader.h>
 
 const int SCREEN_WIDTH  = 640;
@@ -43,53 +47,6 @@ SDL_Texture *loadTexture(SDL_Renderer *r, std::string path) {
 
   return texture;
 }
-
-struct Tile {
-  uint32_t id;
-  bool passable;
-};
-
-const uint32_t TILESET_SIZE = 8;
-
-class TileSet {
-  private:
-    SDL_Renderer *renderer;
-    SDL_Texture *texture;
-
-  public:
-    const uint32_t tileSize;
-
-    TileSet(SDL_Renderer *r, std::string name, uint32_t tileSize = 16)
-      : renderer(r)
-      , tileSize(tileSize)
-    {
-      texture = loadTexture(renderer, "res/" + name + ".png");
-
-      SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-    }
-
-    ~TileSet() {
-      SDL_DestroyTexture(texture);
-    }
-
-    void render(uint32_t ox, uint32_t oy, uint32_t x, uint32_t y, const Tile & tile) const {
-      SDL_Rect srcRect {
-        static_cast<int>(tile.id % 8 * tileSize),    
-        static_cast<int>(tile.id / 8 * tileSize),
-        static_cast<int>(tileSize),
-        static_cast<int>(tileSize),
-      };
-
-      SDL_Rect dstRect {
-        static_cast<int>(ox + x * tileSize),
-        static_cast<int>(oy + y * tileSize),
-        static_cast<int>(tileSize),
-        static_cast<int>(tileSize),
-      };
-
-      SDL_RenderCopy(renderer, texture, &srcRect, &dstRect);
-    }
-};
 
 class Entity {
   public:
@@ -158,94 +115,6 @@ class Obelisk : public Entity {
       };
 
       SDL_RenderCopy(r, texture, nullptr, &rect);
-    }
-};
-
-class Map {
-  friend class Camera;
-
-  private:
-    TileSet tileSet;
-    Tile *map;
-    std::vector<Entity *> entities;
-
-    uint32_t width;
-    uint32_t height;
-    uint32_t tileSize;
-
-  public:
-    Map(uint32_t w, uint32_t h, SDL_Renderer *r, std::string ts)
-      : width(w)
-      , height(h)
-      , tileSet(r, ts)
-      , map { new Tile [w * h] }
-    {
-      for (uint32_t y = 0; y < height; y++) {
-        for (uint32_t x = 0; x < width; x++) {
-          if (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1) {
-            map[y * width + x] = Tile { 1, false };
-          } else if (y == 1) {
-            map[y * width + x] = Tile { 2, false  };
-          } else {
-            map[y * width + x] = Tile { 0, true  };
-          }
-        }
-      }
-
-      entities.push_back(new Obelisk { 5, 5, r });
-    }
-
-    ~Map() {
-      delete [] map;
-
-      for (auto e : entities) {
-        delete e;
-      }
-    }
-
-    Tile & get(uint32_t x, uint32_t y) {
-      return map[y * width + x];
-    }
-
-    const Tile & get(uint32_t x, uint32_t y) const {
-      return map[y * width + x];
-    }
-
-    void render(uint32_t ox, uint32_t oy) const {
-      for (uint32_t y = 0; y < height; y++) {
-        for (uint32_t x = 0; x < width; x++) {
-          auto tile = get(x, y);
-          tileSet.render(ox, oy, x, y, tile);
-        }
-      }
-
-      for (auto e : entities) {
-        e->render(ox, oy);
-      }
-    }
-
-    bool passable(uint32_t x, uint32_t y) const {
-      if (get(x, y).passable) {
-        for (auto e : entities) {
-          if (e->x == x && e->y == y && e->passable == false) {
-            return false;
-          }
-        }
-
-        return true;
-      }
-
-      return false;
-    }
-
-    Entity * getEntity(uint32_t x, uint32_t y) {
-      for (auto e : entities) {
-        if (e->x == x && e->y == y) {
-          return e;
-        }
-      }
-
-      return nullptr;
     }
 };
 
@@ -383,6 +252,180 @@ class Camera {
 };
 #endif
 
+struct Rect { GLfloat x, y, w, h; };
+
+struct Tile {
+  uint32_t id;
+  bool passable;
+};
+
+class TileSet {
+  public:
+    GLuint texture;
+    int textureWidth, textureHeight;
+
+    uint32_t width, height;
+
+    TileSet(std::string path, uint32_t w = 8, uint32_t h = 8)
+      : width(w), height(h)
+    {
+      glGenTextures(1, &texture);
+
+      glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        uint8_t *image = SOIL_load_image(path.c_str(), &textureWidth, &textureHeight, 0, SOIL_LOAD_RGBA);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+        SOIL_free_image_data(image);
+
+        glGenerateMipmap(GL_TEXTURE_2D);
+      glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    ~TileSet() {
+      glDeleteTextures(1, &texture);
+    }
+
+    Rect tileRect(const Tile & tile) const {
+      uint32_t x = tile.id % 8;
+      uint32_t y = tile.id / 8;
+
+      GLfloat tileWidth  = 1.0f / width;
+      GLfloat tileHeight = 1.0f / height;
+
+      return { x * tileWidth, y * tileHeight, tileWidth, tileHeight };
+    }
+};
+
+class Map {
+  public:
+    const TileSet & tileSet;
+
+    Tile *map;
+    // std::vector<Entity *> entities;
+
+    uint32_t width;
+    uint32_t height;
+
+    GLuint vao, vbo;
+    std::vector<GLfloat> vertices;
+
+    Map(uint32_t w, uint32_t h, const TileSet & t)
+      : width(w)
+      , height(h)
+      , tileSet(t)
+      , map { new Tile [w * h] }
+    {
+      /* Generate the map */
+      for (uint32_t y = 0; y < height; y++) {
+        for (uint32_t x = 0; x < width; x++) {
+          if (x <= 0 || x >= width - 1 || y <= 0 || y >= height - 1) {
+            map[y * width + x] = Tile { 1, false };
+          } else if (y == 1) {
+            map[y * width + x] = Tile { 2, false  };
+          } else {
+            map[y * width + x] = Tile { 0, true  };
+          }
+        }
+      }
+
+      /* Generate the model */
+      for (GLfloat y = 0; y < height; y++) {
+        for (GLfloat x = 0; x < width; x++) {
+          auto rect = tileSet.tileRect(get(x, y));
+
+          // printf("Rect for %f %f:\n", x, y);
+          // printf("  { %f %f %f %f }\n", rect.x, rect.y, rect.w, rect.h);
+
+          vertices.insert(vertices.end(), {
+              x + 0, y + 0, rect.x,          rect.y,
+              x + 1, y + 1, rect.x + rect.w, rect.y + rect.h,
+              x + 0, y + 1, rect.x,          rect.y + rect.h,
+
+              x + 1, y + 1, rect.x + rect.w, rect.y + rect.h,
+              x + 0, y + 0, rect.x,          rect.y,
+              x + 1, y + 0, rect.x + rect.w, rect.y,
+          });
+        }
+      }
+
+      /* Generate the VAO */
+      glGenVertexArrays(1, &vao);
+      glGenBuffers(1, &vbo);
+
+      glBindVertexArray(vao);
+
+      glBindBuffer(GL_ARRAY_BUFFER, vbo);
+      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+
+      /* Position attribute */
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+      glEnableVertexAttribArray(0);
+
+      /* Color attribute */
+      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+      glEnableVertexAttribArray(1);
+
+      glBindVertexArray(0);
+
+      // entities.push_back(new Obelisk { 5, 5 });
+    }
+
+    ~Map() {
+      delete [] map;
+
+      // for (auto e : entities) {
+      //   delete e;
+      // }
+    }
+
+    Tile & get(uint32_t x, uint32_t y) {
+      return map[y * width + x];
+    }
+
+    const Tile & get(uint32_t x, uint32_t y) const {
+      return map[y * width + x];
+    }
+
+    void render() const {
+      glBindVertexArray(vao);      
+      glBindTexture(GL_TEXTURE_2D, tileSet.texture);
+
+      glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+
+      glBindTexture(GL_TEXTURE_2D, 0);
+      glBindVertexArray(0);
+    }
+
+    bool passable(uint32_t x, uint32_t y) const {
+      if (get(x, y).passable) {
+        // for (auto e : entities) {
+        //   if (e->x == x && e->y == y && e->passable == false) {
+        //     return false;
+        //   }
+        // }
+
+        return true;
+      }
+
+      return false;
+    }
+
+    // Entity * getEntity(uint32_t x, uint32_t y) {
+    //   for (auto e : entities) {
+    //     if (e->x == x && e->y == y) {
+    //       return e;
+    //     }
+    //   }
+
+    //   return nullptr;
+    // }
+};
+
+
 int main() {
   /* Initialize GLFW */
   glfwInit();
@@ -454,58 +497,28 @@ int main() {
 
   Shader program("res/simple.vsh", "res/simple.fsh");
 
-  std::vector<GLfloat> vertices {
-    // Positions  // Texture Coords
-     0.5f,  0.5f,  1.0f, 1.0f, // Top Right
-     0.5f, -0.5f,  1.0f, 0.0f, // Bottom Right
-    -0.5f, -0.5f,  0.0f, 0.0f, // Bottom Left
-    -0.5f,  0.5f,  0.0f, 1.0f  // Top Left 
-  };
+  TileSet t("res/tiles.png");
+  Map m(20, 20, t);
 
-  std::vector<GLuint> indices {
-    0, 1, 3, // First Triangle
-    1, 2, 3, // Second Triangle
-  };
+  glm::mat4 projection = glm::ortho(
+		0.0f,
+		static_cast<float>(SCREEN_WIDTH),
+		static_cast<float>(SCREEN_HEIGHT),
+		0.0f);
 
-  GLuint VBO, VAO, EBO;
-  glGenVertexArrays(1, &VAO);
-  glGenBuffers(1, &VBO);
-  glGenBuffers(1, &EBO);
-
-  glBindVertexArray(VAO);
-
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
-
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
-
-  // Position attribute
-  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
-  glEnableVertexAttribArray(0);
-  // Color attribute
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
-  glEnableVertexAttribArray(1);
-
-  glBindVertexArray(0); // Unbind VAO
-
-  /* Load textures */
-  int tw, th;
-  uint8_t *image = SOIL_load_image("res/tiles.png", &tw, &th, 0, SOIL_LOAD_RGBA);
-
-  GLuint tex;
-  glGenTextures(1, &tex);
-  glBindTexture(GL_TEXTURE_2D, tex);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tw, th, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-  glGenerateMipmap(GL_TEXTURE_2D);
-
-  SOIL_free_image_data(image);
+  double lastTime = glfwGetTime();
+  int nbFrames = 0;
 
   while(!glfwWindowShouldClose(window)) {
+    double currentTime = glfwGetTime();
+    nbFrames++;
+    if ( currentTime - lastTime >= 1.0 ){ // If last prinf() was more than 1 sec ago
+      // printf and reset timer
+      printf("%f ms/frame\n", 1000.0/double(nbFrames));
+      nbFrames = 0;
+      lastTime += 1.0;
+    }
+
     glfwPollEvents();
 
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -513,9 +526,9 @@ int main() {
 
     program.use();
 
-    glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    program.setUniform("projection", projection);
+
+    m.render();
 
     program.disuse();
 
