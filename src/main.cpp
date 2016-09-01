@@ -425,6 +425,54 @@ class Map {
     // }
 };
 
+// class Camera {
+//   private:
+//     // const Player &player;
+//     // const Map &map;
+// 
+//     glm::vec2 position;
+//     glm::vec2 target;
+// 
+//   public:
+//     Camera(const Player &p, const Map &m)
+//       : player(p)
+//       , map(m)
+//       , position(0, 0)
+//       , target(0, 0)
+//     { }
+// 
+//     void updatePosition(float delta) {
+//       position += delta * (target - position);
+//     }
+// 
+//     glm::mat4 viewMatrix() const {
+//       return glm::translate(-position.x, -position.y, 0);
+//     }
+// };
+
+class FPSCounter {
+  private:
+    double lastTime;
+    int frames;
+
+  public:
+    FPSCounter()
+      : lastTime { glfwGetTime() }
+      , frames(0)
+    { }
+
+    void update() {
+      double currentTime = glfwGetTime();
+      frames++;
+
+      if (currentTime - lastTime >= 1.0) {
+        printf("%f ms/frame\n", 1000.0 / frames);
+
+        frames = 0;
+        lastTime = currentTime;
+      }
+    }
+};
 
 int main() {
   /* Initialize GLFW */
@@ -506,18 +554,12 @@ int main() {
 		static_cast<float>(SCREEN_HEIGHT),
 		0.0f);
 
-  double lastTime = glfwGetTime();
-  int nbFrames = 0;
+  glm::mat4 model = glm::scale(glm::vec3(16,16,16));
+
+  FPSCounter fps;
 
   while(!glfwWindowShouldClose(window)) {
-    double currentTime = glfwGetTime();
-    nbFrames++;
-    if ( currentTime - lastTime >= 1.0 ){ // If last prinf() was more than 1 sec ago
-      // printf and reset timer
-      printf("%f ms/frame\n", 1000.0/double(nbFrames));
-      nbFrames = 0;
-      lastTime += 1.0;
-    }
+    fps.update();
 
     glfwPollEvents();
 
