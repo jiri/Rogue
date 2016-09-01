@@ -14,40 +14,14 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/transform.hpp>
 
+using namespace glm;
+
 #include <Shader.h>
 
 const int SCREEN_WIDTH  = 640;
 const int SCREEN_HEIGHT = 480;
 
 #if 0
-SDL_Texture *textToTexture(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Color color = {0, 0, 0}) {
-  SDL_Surface *surface = TTF_RenderText_Solid(font, text, color);
-  SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
-  SDL_FreeSurface(surface); 
-
-  return texture;
-}
-
-SDL_Texture *loadTexture(SDL_Renderer *r, std::string path) {
-  auto load = IMG_Load(path.c_str());
-
-  if (load == nullptr) {
-    printf("Failed to load image '%s'.\nIMG_Error: %s\n", path.c_str(), IMG_GetError());
-    return nullptr;
-  }
-  
-  auto texture = SDL_CreateTextureFromSurface(r, load);
-
-  if (texture == nullptr) {
-    printf("Failed to create texture from '%s'.\nIMG_Error: %s\n", path.c_str(), SDL_GetError());
-    return nullptr;
-  }
-
-  SDL_FreeSurface(load);
-
-  return texture;
-}
-
 class Entity {
   public:
     uint32_t x;
@@ -204,52 +178,6 @@ class OrientedEntityController {
       return true;
     }
 };
-
-class Camera {
-  private:
-    const Player &player;
-    const Map &map;
-
-    uint32_t x;
-    uint32_t y;
-
-  public:
-    Camera(const Player &p, const Map &m)
-      : player(p)
-      , map(m)
-      , x(0)
-      , y(0)
-    {
-    }
-
-    void render(SDL_Renderer *r) {
-      map.render(
-        SCREEN_WIDTH  / 4 - x,
-        SCREEN_HEIGHT / 4 - y
-      );
-      player.render(
-        SCREEN_WIDTH  / 4 - x + player.x * map.tileSet.tileSize,
-        SCREEN_HEIGHT / 4 - y + player.y * map.tileSet.tileSize - 8
-      );
-    }
-
-    void updatePosition(float delta) {
-      int32_t dx = player.x * map.tileSet.tileSize - x;
-      int32_t dy = player.y * map.tileSet.tileSize - y;
-
-      if (dx < 0) {
-        x = floor(x + delta * dx);
-      } else {
-        x = ceil(x + delta * dx);
-      }
-
-      if (dy < 0) {
-        y = floor(y + delta * dy);
-      } else {
-        y = ceil(y + delta * dy);
-      }
-    }
-};
 #endif
 
 struct Rect { GLfloat x, y, w, h; };
@@ -332,13 +260,12 @@ class Map {
         }
       }
 
+      // entities.push_back(new Obelisk { 5, 5 });
+
       /* Generate the model */
       for (GLfloat y = 0; y < height; y++) {
         for (GLfloat x = 0; x < width; x++) {
           auto rect = tileSet.tileRect(get(x, y));
-
-          // printf("Rect for %f %f:\n", x, y);
-          // printf("  { %f %f %f %f }\n", rect.x, rect.y, rect.w, rect.h);
 
           vertices.insert(vertices.end(), {
               x + 0, y + 0, rect.x,          rect.y,
@@ -370,8 +297,6 @@ class Map {
       glEnableVertexAttribArray(1);
 
       glBindVertexArray(0);
-
-      // entities.push_back(new Obelisk { 5, 5 });
     }
 
     ~Map() {
@@ -425,30 +350,41 @@ class Map {
     // }
 };
 
-// class Camera {
-//   private:
-//     // const Player &player;
-//     // const Map &map;
-// 
-//     glm::vec2 position;
-//     glm::vec2 target;
-// 
-//   public:
-//     Camera(const Player &p, const Map &m)
-//       : player(p)
-//       , map(m)
-//       , position(0, 0)
-//       , target(0, 0)
-//     { }
-// 
-//     void updatePosition(float delta) {
-//       position += delta * (target - position);
-//     }
-// 
-//     glm::mat4 viewMatrix() const {
-//       return glm::translate(-position.x, -position.y, 0);
-//     }
-// };
+class Camera {
+  private:
+    // const Player &player;
+    // const Map &map;
+
+    vec2 position;
+    vec2 target;
+
+  public:
+    Camera(const vec2 & pos)
+      : position(pos)
+      , target(pos)
+    { }
+
+    Camera(uint32_t x, uint32_t y)
+      : position(x, y)
+      , target(x, y)
+    { }
+
+    Camera()
+      : Camera(0, 0)
+    { }
+
+    void updatePosition(float delta) {
+      position += delta * (target - position);
+    }
+
+    mat4 viewMatrix() const {
+      return translate(vec3(-position.x, -position.y, 0));
+    }
+
+    void seek(uint32_t x, uint32_t y) {
+      target = vec2(x, y);
+    }
+};
 
 class FPSCounter {
   private:
@@ -471,6 +407,10 @@ class FPSCounter {
         frames = 0;
         lastTime = currentTime;
       }
+    }
+
+    double delta() const {
+      return glfwGetTime() - lastTime;
     }
 };
 
@@ -520,54 +460,46 @@ int main() {
   Camera c { p, m };
 #endif
 
-#if 0
-  /* Main loop */
-  bool quit = false;
-  SDL_Event e;
-
-  uint32_t time = SDL_GetTicks();
-
-  while (!quit) {
-    controller.processEvent(e);
-
-    uint32_t current = SDL_GetTicks();
-    float delta = (current - time) / 1000.0f;
-    time = current;
-
-    SDL_RenderClear(renderer);
-
-    c.render(renderer);
-    c.updatePosition(delta);
-
-    SDL_RenderPresent(renderer);
-  }
-#endif
-
-  Shader program("res/simple.vsh", "res/simple.fsh");
-
+  /* Data */
   TileSet t("res/tiles.png");
   Map m(20, 20, t);
 
-  glm::mat4 projection = glm::ortho(
-		0.0f,
-		static_cast<float>(SCREEN_WIDTH),
-		static_cast<float>(SCREEN_HEIGHT),
-		0.0f);
+  Camera c(50, 50);
 
-  glm::mat4 model = glm::scale(glm::vec3(16,16,16));
+  /* Shader & matrices */
+  Shader program("res/simple.vsh", "res/simple.fsh");
+
+  mat4 projection = ortho(0.0f, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT, 0.0f);
+
+  mat4 center = translate(vec3(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 0));
+
+  mat4 model = scale(vec3(16, 16, 16));
 
   FPSCounter fps;
-
   while(!glfwWindowShouldClose(window)) {
     fps.update();
 
     glfwPollEvents();
+
+    /* Update camera */
+    c.updatePosition(fps.delta());
+
+    static bool flag = true;
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && flag) {
+      c.seek(rand() % SCREEN_WIDTH, rand() % SCREEN_HEIGHT);
+      flag = false;
+    }
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE) {
+      flag = true;
+    }
 
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     program.use();
 
+    program.setUniform("model", model);
+    program.setUniform("view", center * c.viewMatrix());
     program.setUniform("projection", projection);
 
     m.render();
