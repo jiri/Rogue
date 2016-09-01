@@ -54,10 +54,12 @@ include_directories(SOIL/src/)
 target_link_libraries(${PROJECT_NAME} soil)
 
 # Copy resources
+
+# XXX: Temporary symlink for development purposes
 add_custom_command(
-  TARGET ${PROJECT_NAME} PRE_BUILD
-  COMMENT "Copying resources..."
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${CMAKE_SOURCE_DIR}/res
-  $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
+  TARGET ${PROJECT_NAME} POST_BUILD
+  COMMENT "Linking resources..."
+  COMMAND ${CMAKE_COMMAND} -E create_symlink
+    ${CMAKE_SOURCE_DIR}/res
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/res
 )
