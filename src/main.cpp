@@ -22,76 +22,6 @@ const int SCREEN_WIDTH  = 640;
 const int SCREEN_HEIGHT = 480;
 
 #if 0
-class Entity {
-  public:
-    uint32_t x;
-    uint32_t y;
-
-    bool passable;
-
-    Entity(uint32_t x, uint32_t y, bool p)
-      : x(x)
-      , y(y)
-      , passable(p)
-    { }
-
-    virtual ~Entity() { }
-
-    virtual bool interact() = 0;
-
-    virtual void render(uint32_t ox, uint32_t oy) const = 0;
-};
-
-enum Orientation { N = 0, E, S, W };
-
-class OrientedEntity : public Entity {
-  public:
-    Orientation orientation;
-
-    OrientedEntity(uint32_t x, uint32_t y, bool p, Orientation o = Orientation::N)
-      : Entity(x, y, p)
-      , orientation(o)
-    { }
-
-    virtual bool interact() = 0;
-
-    virtual void render(uint32_t ox, uint32_t oy) const = 0;
-};
-
-class Obelisk : public Entity {
-  private:
-    SDL_Renderer *r;
-    SDL_Texture *texture;
-
-  public:
-    Obelisk(uint32_t x, uint32_t y, SDL_Renderer *r)
-      : Entity(x, y, false)
-      , r(r)
-    {
-      texture = loadTexture(r, "res/obelisk.png");
-    }
-
-    ~Obelisk() {
-      SDL_DestroyTexture(texture);
-    }
-
-    bool interact() override {
-      printf("Stuff is inscribed in the stone in an acient script. You can't read it for shit.\n");
-      return true;
-    }
-
-    void render(uint32_t ox, uint32_t oy) const override {
-      SDL_Rect rect {
-        static_cast<int>(ox + x * 16),
-        static_cast<int>(oy + y * 16 - 8),
-        static_cast<int>(16),
-        static_cast<int>(24),
-      };
-
-      SDL_RenderCopy(r, texture, nullptr, &rect);
-    }
-};
-
 class Player : public OrientedEntity {
   private:
     SDL_Renderer *r;
@@ -180,6 +110,120 @@ class OrientedEntityController {
 };
 #endif
 
+class Entity {
+  public:
+    vec2 position;
+
+    bool passable;
+
+    Entity(uint32_t x, uint32_t y, bool p)
+      : position(x, y)
+      , passable(p)
+    { }
+
+    virtual ~Entity() { }
+
+    virtual bool interact() = 0;
+
+    virtual void render() const = 0;
+};
+
+enum Orientation { N = 0, E, S, W };
+
+class OrientedEntity : public Entity {
+  public:
+    Orientation orientation;
+
+    OrientedEntity(uint32_t x, uint32_t y, bool p, Orientation o = N)
+      : Entity(x, y, p)
+      , orientation(o)
+    { }
+
+    virtual bool interact() = 0;
+
+    virtual void render() const = 0;
+};
+
+class Obelisk : public Entity {
+  private:
+    GLuint texture;
+    int textureWidth, textureHeight;
+
+    GLuint vao, vbo;
+    std::vector<GLfloat> vertices;
+
+  public:
+    Obelisk(uint32_t x, uint32_t y)
+      : Entity(x, y, false)
+    {
+      /* Create the texture */
+      glGenTextures(1, &texture);
+
+      glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        uint8_t *image = SOIL_load_image("res/obelisk.png", &textureWidth, &textureHeight, 0, SOIL_LOAD_RGBA);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+        SOIL_free_image_data(image);
+      glBindTexture(GL_TEXTURE_2D, 0);
+      
+      /* Create the model */
+      vertices.insert(vertices.end(), {
+          0.0f, 0.0f,  0.0f, 0.0f,
+          0.0f, 1.5f,  0.0f, 1.0f,
+          1.0f, 1.5f,  1.0f, 1.0f,
+
+          0.0f, 0.0f,  0.0f, 0.0f,
+          1.0f, 0.0f,  1.0f, 0.0f,
+          1.0f, 1.5f,  1.0f, 1.0f,
+      });
+
+      /* Generate the VAO */
+      glGenVertexArrays(1, &vao);
+      glGenBuffers(1, &vbo);
+
+      glBindVertexArray(vao);
+
+      glBindBuffer(GL_ARRAY_BUFFER, vbo);
+      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+
+      /* Position attribute */
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+      glEnableVertexAttribArray(0);
+
+      /* Color attribute */
+      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+      glEnableVertexAttribArray(1);
+
+      glBindVertexArray(0);
+    }
+
+    ~Obelisk() {
+      glDeleteTextures(1, &texture);
+
+      glDeleteVertexArrays(1, &vao);
+      glDeleteBuffers(1, &vbo);
+    }
+
+    bool interact() override {
+      printf("Stuff is inscribed in the stone in an acient script. You can't read it for shit.\n");
+      return true;
+    }
+
+    void render() const override {
+      glBindVertexArray(vao);      
+      glBindTexture(GL_TEXTURE_2D, texture);
+
+      glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+
+      glBindTexture(GL_TEXTURE_2D, 0);
+      glBindVertexArray(0);
+    }
+};
+
 struct Rect { GLfloat x, y, w, h; };
 
 struct Tile {
@@ -233,7 +277,7 @@ class Map {
     const TileSet & tileSet;
 
     Tile *map;
-    // std::vector<Entity *> entities;
+    std::vector<std::unique_ptr<Entity>> entities;
 
     uint32_t width;
     uint32_t height;
@@ -260,7 +304,7 @@ class Map {
         }
       }
 
-      // entities.push_back(new Obelisk { 5, 5 });
+      entities.push_back(std::unique_ptr<Obelisk>(new Obelisk { 5, 5 }));
 
       /* Generate the model */
       for (GLfloat y = 0; y < height; y++) {
@@ -302,9 +346,8 @@ class Map {
     ~Map() {
       delete [] map;
 
-      // for (auto e : entities) {
-      //   delete e;
-      // }
+      glDeleteVertexArrays(1, &vao);
+      glDeleteBuffers(1, &vbo);
     }
 
     Tile & get(uint32_t x, uint32_t y) {
@@ -325,13 +368,19 @@ class Map {
       glBindVertexArray(0);
     }
 
+    void renderEntities() const {
+      for (auto & e : entities) {
+        e->render();
+      }
+    }
+
     bool passable(uint32_t x, uint32_t y) const {
       if (get(x, y).passable) {
-        // for (auto e : entities) {
-        //   if (e->x == x && e->y == y && e->passable == false) {
-        //     return false;
-        //   }
-        // }
+        for (auto & e : entities) {
+          if (e->position == vec2(x, y) && e->passable == false) {
+            return false;
+          }
+        }
 
         return true;
       }
@@ -450,6 +499,10 @@ int main() {
   glfwGetFramebufferSize(window, &width, &height);
   glViewport(0, 0, width, height);
 
+  /* Enable transparency */
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 #if 0
   /* Data */
   Map m(20, 20, renderer, "tiles");
@@ -474,6 +527,8 @@ int main() {
   mat4 center = translate(vec3(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 0));
 
   mat4 model = scale(vec3(16, 16, 16));
+
+  mat4 unit;
 
   FPSCounter fps;
   while(!glfwWindowShouldClose(window)) {
@@ -503,6 +558,10 @@ int main() {
     program.setUniform("projection", projection);
 
     m.render();
+
+    // program.setUniform("model", unit);
+
+    m.renderEntities();
 
     program.disuse();
 
