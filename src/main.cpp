@@ -110,6 +110,37 @@ class OrientedEntityController {
 };
 #endif
 
+class GraphicsContext {
+  private:
+    Shader & shader;
+
+  public:
+    mat4 model;
+    mat4 view;
+    mat4 projection;
+
+    GraphicsContext(Shader & s, mat4 p = mat4(), mat4 v = mat4(), mat4 m = mat4())
+      : shader(s)
+      , model(m)
+      , view(v)
+      , projection(p)
+    { }
+
+    void use() {
+      shader.use();
+    }
+
+    void disuse() {
+      shader.disuse();
+    }
+
+    void updateContext() {
+      shader.setUniform("model", model);
+      shader.setUniform("view", view);
+      shader.setUniform("projection", projection);
+    }
+};
+
 class Entity {
   public:
     vec2 position;
@@ -125,7 +156,7 @@ class Entity {
 
     virtual bool interact() = 0;
 
-    virtual void render() const = 0;
+    virtual void render(GraphicsContext context) const = 0;
 };
 
 enum Orientation { N = 0, E, S, W };
@@ -213,7 +244,11 @@ class Obelisk : public Entity {
       return true;
     }
 
-    void render() const override {
+    void render(GraphicsContext context) const override {
+      context.model *= translate(vec3(position.x, position.y, 0));
+
+      context.updateContext();
+
       glBindVertexArray(vao);      
       glBindTexture(GL_TEXTURE_2D, texture);
 
@@ -358,7 +393,9 @@ class Map {
       return map[y * width + x];
     }
 
-    void render() const {
+    void render(GraphicsContext context) const {
+      context.updateContext();
+
       glBindVertexArray(vao);      
       glBindTexture(GL_TEXTURE_2D, tileSet.texture);
 
@@ -368,9 +405,9 @@ class Map {
       glBindVertexArray(0);
     }
 
-    void renderEntities() const {
+    void renderEntities(GraphicsContext context) const {
       for (auto & e : entities) {
-        e->render();
+        e->render(context);
       }
     }
 
@@ -526,9 +563,9 @@ int main() {
 
   mat4 center = translate(vec3(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 0));
 
-  mat4 model = scale(vec3(16, 16, 16));
+  mat4 model = scale(vec3(32, 32, 32));
 
-  mat4 unit;
+  GraphicsContext context { program, projection, center, model };
 
   FPSCounter fps;
   while(!glfwWindowShouldClose(window)) {
@@ -548,22 +585,19 @@ int main() {
       flag = true;
     }
 
+    /* Render the scene */
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    program.use();
+    context.use();
 
-    program.setUniform("model", model);
-    program.setUniform("view", center * c.viewMatrix());
-    program.setUniform("projection", projection);
+    context.view = center * c.viewMatrix();
+    context.updateContext();
 
-    m.render();
+    m.render(context);
+    m.renderEntities(context);
 
-    // program.setUniform("model", unit);
-
-    m.renderEntities();
-
-    program.disuse();
+    context.disuse();
 
     glfwSwapBuffers(window);
   }
