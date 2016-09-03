@@ -653,23 +653,23 @@ class OrientedEntityController {
         delta.x = -1;
       }
       
-#if 0
-      case SDLK_SPACE:
-          switch (entity.orientation) {
-            case N: dy = -1; break;
-            case E: dx =  1; break;
-            case S: dy =  1; break;
-            case W: dx = -1; break;
-          }
 
-          auto e = map.getEntity(entity.x + dx, entity.y + dy);
+      if (key == GLFW_KEY_SPACE) {
+        switch (entity.orientation) {
+          case N: delta.y = -1; break;
+          case E: delta.x =  1; break;
+          case S: delta.y =  1; break;
+          case W: delta.x = -1; break;
+        }
 
-          if (e != nullptr) {
-            e->interact();
-          }
+        auto e = map.getEntity(entity.position + delta);
 
-          return true;
-#endif
+        if (e != nullptr) {
+          e->interact();
+        }
+
+        return true;
+      }
 
       if (map.passable(entity.position + delta)) {
         entity.position += delta;
