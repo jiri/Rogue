@@ -651,8 +651,6 @@ int main() {
 
   FPSCounter fps;
   while(!glfwWindowShouldClose(window)) {
-    fps.update();
-
     glfwPollEvents();
 
     /* Update camera */
