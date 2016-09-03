@@ -355,6 +355,9 @@ class Map {
     uint32_t width;
     uint32_t height;
 
+    GLuint texture;
+    GLuint framebuffer;
+
     GLuint vao, vbo;
     std::vector<GLfloat> vertices;
 
@@ -381,18 +384,96 @@ class Map {
       entities.push_back(new Obelisk { 7, 7 });
 
       /* Generate the model */
+      vertices.insert(vertices.end(), {
+          0.0f,     0.0f,      1.0f, 1.0f,
+          (float)w, (float)h,  0.0f, 0.0f,
+          0.0f,     (float)h,  1.0f, 0.0f,
+
+          (float)w, (float)h,  0.0f, 0.0f,
+          0.0f,     0.0f,      1.0f, 1.0f,
+          (float)w, 0.0f,      0.0f, 1.0f,
+
+      });
+
+      /* Generate the VAO */
+      glGenVertexArrays(1, &vao);
+      glGenBuffers(1, &vbo);
+
+      glBindVertexArray(vao);
+
+      glBindBuffer(GL_ARRAY_BUFFER, vbo);
+      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+
+      /* Position attribute */
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+      glEnableVertexAttribArray(0);
+
+      /* Color attribute */
+      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+      glEnableVertexAttribArray(1);
+
+      glBindVertexArray(0);
+
+      /* Prepare the framebuffer */
+      glGenFramebuffers(1, &framebuffer);
+      glGenTextures(1, &texture);
+    }
+
+    ~Map() {
+      delete [] map;
+
+      glDeleteVertexArrays(1, &vao);
+      glDeleteBuffers(1, &vbo);
+
+      glDeleteFramebuffers(1, &framebuffer);
+      glDeleteTextures(1, &texture);
+    }
+
+    void renderMap() {
+      int v[4];
+      glGetIntegerv(GL_VIEWPORT, v);
+
+      glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+      glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width * 16, height * 16, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+      glBindTexture(GL_TEXTURE_2D, 0);
+
+      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+
+      GLuint rbo;
+      glGenRenderbuffers(1, &rbo);
+      glBindRenderbuffer(GL_RENDERBUFFER, rbo); 
+      glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width * 16, height * 16);  
+      glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+      glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+      if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        printf("ERROR::FRAMEBUFFER:: Framebuffer is not complete!\n");
+      }
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+
+      GLuint vao, vbo;
+      std::vector<GLfloat> vertices;
+
       for (GLfloat y = 0; y < height; y++) {
         for (GLfloat x = 0; x < width; x++) {
           auto rect = tileSet.tileRect(get(x, y));
 
           vertices.insert(vertices.end(), {
-              x + 0, y + 0, rect.x,          rect.y,
-              x + 1, y + 1, rect.x + rect.w, rect.y + rect.h,
-              x + 0, y + 1, rect.x,          rect.y + rect.h,
+              (x + 0), (y + 0), rect.x,          rect.y,
+              (x + 1), (y + 1), rect.x + rect.w, rect.y + rect.h,
+              (x + 0), (y + 1), rect.x,          rect.y + rect.h,
 
-              x + 1, y + 1, rect.x + rect.w, rect.y + rect.h,
-              x + 0, y + 0, rect.x,          rect.y,
-              x + 1, y + 0, rect.x + rect.w, rect.y,
+              (x + 1), (y + 1), rect.x + rect.w, rect.y + rect.h,
+              (x + 0), (y + 0), rect.x,          rect.y,
+              (x + 1), (y + 0), rect.x + rect.w, rect.y,
           });
         }
       }
@@ -415,13 +496,36 @@ class Map {
       glEnableVertexAttribArray(1);
 
       glBindVertexArray(0);
-    }
 
-    ~Map() {
-      delete [] map;
+      /* Render to the framebuffer */
+      glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+      glViewport(0, 0, width * 16, height * 16);
 
-      glDeleteVertexArrays(1, &vao);
-      glDeleteBuffers(1, &vbo);
+      Shader s("res/simple.vsh", "res/simple.fsh");
+
+      s.use();
+
+      s.setUniform("model", mat4());
+      s.setUniform("projection", ortho(0.0f, (float) width, (float) height, 0.0f));
+      s.setUniform("view", mat4());
+      s.setUniform("tileSize", mat4());
+
+      glClearColor(0.0f, 1.0f, 0.0f, 0.0f);
+      glClear(GL_COLOR_BUFFER_BIT);
+
+      glBindVertexArray(vao);      
+      glBindTexture(GL_TEXTURE_2D, tileSet.texture);
+
+      glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+
+      s.disuse();
+
+      glBindTexture(GL_TEXTURE_2D, 0);
+      glBindVertexArray(0);
+
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+      glViewport(v[0], v[1], v[2], v[3]);
     }
 
     Tile & get(uint32_t x, uint32_t y) {
@@ -436,7 +540,7 @@ class Map {
       context.updateContext();
 
       glBindVertexArray(vao);      
-      glBindTexture(GL_TEXTURE_2D, tileSet.texture);
+      glBindTexture(GL_TEXTURE_2D, texture);
 
       glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
@@ -662,6 +766,8 @@ int main() {
     c.updatePosition(fps.delta());
 
     /* Render the scene */
+    m.renderMap();
+
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
