@@ -21,95 +21,6 @@ using namespace glm;
 const int SCREEN_WIDTH  = 640;
 const int SCREEN_HEIGHT = 480;
 
-#if 0
-class Player : public OrientedEntity {
-  private:
-    SDL_Renderer *r;
-    SDL_Texture *texture;
-
-  public:
-
-    Player(SDL_Renderer *r, uint32_t x, uint32_t y)
-      : OrientedEntity(x, y, false)
-      , r(r)
-      , texture { loadTexture(r, "res/player.png") }
-    { }
-
-    bool interact() override {
-      return false;
-    };
-
-    void render(uint32_t ox, uint32_t oy) const override {
-      SDL_Rect srcRect {
-        static_cast<int>(orientation * 16),
-        static_cast<int>(0),
-        static_cast<int>(16),
-        static_cast<int>(24),
-      };
-
-      SDL_Rect dstRect {
-        static_cast<int>(ox),
-        static_cast<int>(oy),
-        static_cast<int>(16),
-        static_cast<int>(24),
-      };
-
-      SDL_RenderCopy(r, texture, &srcRect, &dstRect);
-    }
-};
-
-class OrientedEntityController {
-  private:
-    OrientedEntity &entity;
-    Map &map;
-
-  public:
-    OrientedEntityController(OrientedEntity &e, Map &m)
-      : entity(e)
-      , map(m)
-    { }
-
-    bool processEvent(SDL_Event &e) {
-      int dx = 0;
-      int dy = 0;
-
-      if (e.type != SDL_KEYDOWN) {
-        return false;
-      }
-
-      switch (e.key.keysym.sym) {
-        case SDLK_LEFT:  entity.orientation = W; dx = -1; break;
-        case SDLK_RIGHT: entity.orientation = E; dx =  1; break;
-        case SDLK_UP:    entity.orientation = N; dy = -1; break;
-        case SDLK_DOWN:  entity.orientation = S; dy =  1; break;
-
-        case SDLK_SPACE:
-          switch (entity.orientation) {
-            case N: dy = -1; break;
-            case E: dx =  1; break;
-            case S: dy =  1; break;
-            case W: dx = -1; break;
-          }
-
-          auto e = map.getEntity(entity.x + dx, entity.y + dy);
-
-          if (e != nullptr) {
-            e->interact();
-          }
-
-          return true;
-      }
-
-      if (map.passable(entity.x + dx, entity.y + dy)) {
-        entity.x += dx;
-        entity.y += dy;
-      }
-      
-      return true;
-    }
-};
-#endif
-
 class GraphicsContext {
   private:
     Shader & shader;
@@ -172,7 +83,7 @@ class OrientedEntity : public Entity {
 
     virtual bool interact() = 0;
 
-    virtual void render() const = 0;
+    virtual void render(GraphicsContext context) const = 0;
 };
 
 class Obelisk : public Entity {
@@ -203,13 +114,13 @@ class Obelisk : public Entity {
       
       /* Create the model */
       vertices.insert(vertices.end(), {
-          0.0f, 0.0f,  0.0f, 0.0f,
-          0.0f, 1.5f,  0.0f, 1.0f,
-          1.0f, 1.5f,  1.0f, 1.0f,
-
-          0.0f, 0.0f,  0.0f, 0.0f,
-          1.0f, 0.0f,  1.0f, 0.0f,
-          1.0f, 1.5f,  1.0f, 1.0f,
+          0.0f, -0.5f,  0.0f, 0.0f,
+          0.0f,  1.0f,  0.0f, 1.0f,
+          1.0f,  1.0f,  1.0f, 1.0f,
+                 
+          0.0f, -0.5f,  0.0f, 0.0f,
+          1.0f, -0.5f,  1.0f, 0.0f,
+          1.0f,  1.0f,  1.0f, 1.0f,
       });
 
       /* Generate the VAO */
@@ -253,6 +164,129 @@ class Obelisk : public Entity {
       glBindTexture(GL_TEXTURE_2D, texture);
 
       glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+
+      glBindTexture(GL_TEXTURE_2D, 0);
+      glBindVertexArray(0);
+    }
+};
+
+class Player : public OrientedEntity {
+  private:
+    GLuint texture;
+    int textureWidth, textureHeight;
+
+    GLuint vao, vbo;
+    std::vector<GLfloat> verticesN;
+    std::vector<GLfloat> verticesE;
+    std::vector<GLfloat> verticesS;
+    std::vector<GLfloat> verticesW;
+
+  public:
+    Player(uint32_t x, uint32_t y)
+      : OrientedEntity(x, y, false)
+    {
+      /* Create the texture */
+      glGenTextures(1, &texture);
+
+      glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        uint8_t *image = SOIL_load_image("res/player.png", &textureWidth, &textureHeight, 0, SOIL_LOAD_RGBA);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+        SOIL_free_image_data(image);
+      glBindTexture(GL_TEXTURE_2D, 0);
+      
+      /* Create the model */
+      verticesN.insert(verticesN.end(), {
+          0.0f, -0.5f,  0.0f, 0.0f,
+          0.0f,  1.0f,  0.0f, 1.0f,
+          1.0f,  1.0f,  .25f, 1.0f,
+                 
+          0.0f, -0.5f,  0.0f, 0.0f,
+          1.0f, -0.5f,  .25f, 0.0f,
+          1.0f,  1.0f,  .25f, 1.0f,
+      });
+      verticesE.insert(verticesE.end(), {
+          0.0f, -0.5f,  .25f, 0.0f,
+          0.0f,  1.0f,  .25f, 1.0f,
+          1.0f,  1.0f,  0.5f, 1.0f,
+                 
+          0.0f, -0.5f,  .25f, 0.0f,
+          1.0f, -0.5f,  0.5f, 0.0f,
+          1.0f,  1.0f,  0.5f, 1.0f,
+      });
+      verticesS.insert(verticesS.end(), {
+          0.0f, -0.5f,  0.5f, 0.0f,
+          0.0f,  1.0f,  0.5f, 1.0f,
+          1.0f,  1.0f,  .75f, 1.0f,
+                 
+          0.0f, -0.5f,  0.5f, 0.0f,
+          1.0f, -0.5f,  .75f, 0.0f,
+          1.0f,  1.0f,  .75f, 1.0f,
+      });
+      verticesW.insert(verticesW.end(), {
+          0.0f, -0.5f,  .75f, 0.0f,
+          0.0f,  1.0f,  .75f, 1.0f,
+          1.0f,  1.0f,  1.0f, 1.0f,
+                 
+          0.0f, -0.5f,  .75f, 0.0f,
+          1.0f, -0.5f,  1.0f, 0.0f,
+          1.0f,  1.0f,  1.0f, 1.0f,
+      });
+
+      /* Generate the VAO */
+      glGenVertexArrays(1, &vao);
+      glGenBuffers(1, &vbo);
+
+      glBindVertexArray(vao);
+
+      glBindBuffer(GL_ARRAY_BUFFER, vbo);
+      // glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+
+      /* Position attribute */
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+      glEnableVertexAttribArray(0);
+
+      /* Color attribute */
+      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+      glEnableVertexAttribArray(1);
+
+      glBindVertexArray(0);
+    }
+
+    bool interact() override {
+      return false;
+    };
+
+    void render(GraphicsContext context) const override {
+      /* FIXME: HAHA EWWW */
+
+      context.model *= translate(vec3(position.x, position.y, 0));
+      context.updateContext();
+
+      glBindBuffer(GL_ARRAY_BUFFER, vbo);
+      switch (orientation) {
+        case N:
+          glBufferData(GL_ARRAY_BUFFER, verticesN.size() * sizeof(GLfloat), verticesN.data(), GL_STATIC_DRAW);
+          break;                                                                 
+        case E:                                                                  
+          glBufferData(GL_ARRAY_BUFFER, verticesE.size() * sizeof(GLfloat), verticesE.data(), GL_STATIC_DRAW);
+          break;                                                                 
+        case S:                                                                  
+          glBufferData(GL_ARRAY_BUFFER, verticesS.size() * sizeof(GLfloat), verticesS.data(), GL_STATIC_DRAW);
+          break;                                                                 
+        case W:                                                                  
+          glBufferData(GL_ARRAY_BUFFER, verticesW.size() * sizeof(GLfloat), verticesW.data(), GL_STATIC_DRAW);
+          break;
+      }
+
+      glBindVertexArray(vao);      
+      glBindTexture(GL_TEXTURE_2D, texture);
+
+      glDrawArrays(GL_TRIANGLES, 0, verticesN.size());
 
       glBindTexture(GL_TEXTURE_2D, 0);
       glBindVertexArray(0);
@@ -312,7 +346,7 @@ class Map {
     const TileSet & tileSet;
 
     Tile *map;
-    std::vector<std::unique_ptr<Entity>> entities;
+    std::vector<Entity *> entities;
 
     uint32_t width;
     uint32_t height;
@@ -339,7 +373,8 @@ class Map {
         }
       }
 
-      entities.push_back(std::unique_ptr<Obelisk>(new Obelisk { 5, 5 }));
+      entities.push_back(new Obelisk { 5, 5 });
+      entities.push_back(new Obelisk { 7, 7 });
 
       /* Generate the model */
       for (GLfloat y = 0; y < height; y++) {
@@ -411,10 +446,14 @@ class Map {
       }
     }
 
-    bool passable(uint32_t x, uint32_t y) const {
-      if (get(x, y).passable) {
+    void addEntity(Entity * e) {
+      entities.push_back(e);
+    }
+
+    bool passable(vec2 p) const {
+      if (get(p.x, p.y).passable) {
         for (auto & e : entities) {
-          if (e->position == vec2(x, y) && e->passable == false) {
+          if (e->position == p && e->passable == false) {
             return false;
           }
         }
@@ -425,15 +464,15 @@ class Map {
       return false;
     }
 
-    // Entity * getEntity(uint32_t x, uint32_t y) {
-    //   for (auto e : entities) {
-    //     if (e->x == x && e->y == y) {
-    //       return e;
-    //     }
-    //   }
+    Entity * getEntity(vec2 pos) {
+      for (auto e : entities) {
+        if (e->position == pos) {
+          return e;
+        }
+      }
 
-    //   return nullptr;
-    // }
+      return nullptr;
+    }
 };
 
 class Camera {
@@ -500,6 +539,63 @@ class FPSCounter {
     }
 };
 
+class OrientedEntityController {
+  private:
+    OrientedEntity &entity;
+    Map &map;
+
+  public:
+    OrientedEntityController(OrientedEntity &e, Map &m)
+      : entity(e)
+      , map(m)
+    { }
+
+    bool processEvent(GLFWwindow *window) {
+      vec2 delta;
+
+      if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+        entity.orientation = N;
+        delta.y = -1;
+      }
+      if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+        entity.orientation = E;
+        delta.x = 1;
+      }
+      if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+        entity.orientation = S;
+        delta.y = 1;
+      }
+      if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+        entity.orientation = W;
+        delta.x = -1;
+      }
+      
+#if 0
+      case SDLK_SPACE:
+          switch (entity.orientation) {
+            case N: dy = -1; break;
+            case E: dx =  1; break;
+            case S: dy =  1; break;
+            case W: dx = -1; break;
+          }
+
+          auto e = map.getEntity(entity.x + dx, entity.y + dy);
+
+          if (e != nullptr) {
+            e->interact();
+          }
+
+          return true;
+#endif
+
+      if (map.passable(entity.position + delta)) {
+        entity.position += delta;
+      }
+      
+      return true;
+    }
+};
+
 int main() {
   /* Initialize GLFW */
   glfwInit();
@@ -542,19 +638,21 @@ int main() {
 
 #if 0
   /* Data */
-  Map m(20, 20, renderer, "tiles");
   Player p(renderer, 1, 2);
 
   OrientedEntityController controller { p, m };
-
-  Camera c { p, m };
 #endif
 
   /* Data */
   TileSet t("res/tiles.png");
   Map m(20, 20, t);
 
-  Camera c(50, 50);
+  Player player { 1, 2 };
+  OrientedEntityController pc { player, m };
+
+  m.addEntity(&player);
+
+  Camera c { 50, 50 };
 
   /* Shader & matrices */
   Shader program("res/simple.vsh", "res/simple.fsh");
@@ -584,6 +682,8 @@ int main() {
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE) {
       flag = true;
     }
+
+    pc.processEvent(window);
 
     /* Render the scene */
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
