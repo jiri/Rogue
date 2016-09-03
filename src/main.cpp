@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <queue>
 
 #define GLEW_STATIC
 #include <GL/glew.h>
@@ -550,22 +551,22 @@ class OrientedEntityController {
       , map(m)
     { }
 
-    bool processEvent(GLFWwindow *window) {
+    bool handleKey(int key) {
       vec2 delta;
 
-      if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+      if (key == GLFW_KEY_UP) {
         entity.orientation = N;
         delta.y = -1;
       }
-      if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+      if (key == GLFW_KEY_RIGHT) {
         entity.orientation = E;
         delta.x = 1;
       }
-      if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+      if (key == GLFW_KEY_DOWN) {
         entity.orientation = S;
         delta.y = 1;
       }
-      if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+      if (key == GLFW_KEY_LEFT) {
         entity.orientation = W;
         delta.x = -1;
       }
@@ -596,6 +597,14 @@ class OrientedEntityController {
     }
 };
 
+std::queue<int> keys;
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+  if (action == GLFW_PRESS) {
+    keys.push(key);
+  }
+}
+
 int main() {
   /* Initialize GLFW */
   glfwInit();
@@ -611,6 +620,8 @@ int main() {
 
   /* Create the window */
   GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Rogue", nullptr, nullptr);
+
+  glfwSetKeyCallback(window, key_callback);
 
   if (window == nullptr) {
     fprintf(stderr, "Failed to create GLFW window.\n");
@@ -683,7 +694,10 @@ int main() {
       flag = true;
     }
 
-    pc.processEvent(window);
+    while (!keys.empty()) {
+      pc.handleKey(keys.front());
+      keys.pop();
+    }
 
     /* Render the scene */
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
