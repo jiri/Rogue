@@ -28,12 +28,14 @@ class GraphicsContext {
 
   public:
     mat4 model;
+    mat4 tileSize;
     mat4 view;
     mat4 projection;
 
-    GraphicsContext(Shader & s, mat4 p = mat4(), mat4 v = mat4(), mat4 m = mat4())
+    GraphicsContext(Shader & s, mat4 p, mat4 ts, mat4 v = mat4(), mat4 m = mat4())
       : shader(s)
       , model(m)
+      , tileSize(ts)
       , view(v)
       , projection(p)
     { }
@@ -49,6 +51,7 @@ class GraphicsContext {
     void updateContext() {
       shader.setUniform("model", model);
       shader.setUniform("view", view);
+      shader.setUniform("tileSize", tileSize);
       shader.setUniform("projection", projection);
     }
 };
@@ -478,37 +481,21 @@ class Map {
 
 class Camera {
   private:
-    // const Player &player;
-    // const Map &map;
-
     vec2 position;
-    vec2 target;
+    const Entity &target;
 
   public:
-    Camera(const vec2 & pos)
-      : position(pos)
-      , target(pos)
-    { }
-
-    Camera(uint32_t x, uint32_t y)
-      : position(x, y)
-      , target(x, y)
-    { }
-
-    Camera()
-      : Camera(0, 0)
+    Camera(const Entity & e)
+      : position(e.position)
+      , target(e)
     { }
 
     void updatePosition(float delta) {
-      position += delta * (target - position);
+      position += delta * (target.position - position);
     }
 
     mat4 viewMatrix() const {
       return translate(vec3(-position.x, -position.y, 0));
-    }
-
-    void seek(uint32_t x, uint32_t y) {
-      target = vec2(x, y);
     }
 };
 
@@ -523,20 +510,11 @@ class FPSCounter {
       , frames(0)
     { }
 
-    void update() {
-      double currentTime = glfwGetTime();
-      frames++;
-
-      if (currentTime - lastTime >= 1.0) {
-        printf("%f ms/frame\n", 1000.0 / frames);
-
-        frames = 0;
-        lastTime = currentTime;
-      }
-    }
-
-    double delta() const {
-      return glfwGetTime() - lastTime;
+    double delta() {
+      double now = glfwGetTime();
+      double d = now - lastTime;
+      lastTime = now;
+      return d;
     }
 };
 
@@ -647,13 +625,6 @@ int main() {
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-#if 0
-  /* Data */
-  Player p(renderer, 1, 2);
-
-  OrientedEntityController controller { p, m };
-#endif
-
   /* Data */
   TileSet t("res/tiles.png");
   Map m(20, 20, t);
@@ -663,18 +634,20 @@ int main() {
 
   m.addEntity(&player);
 
-  Camera c { 50, 50 };
+  Camera c { player };
 
   /* Shader & matrices */
   Shader program("res/simple.vsh", "res/simple.fsh");
 
   mat4 projection = ortho(0.0f, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT, 0.0f);
 
-  mat4 center = translate(vec3(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 0));
+  mat4 center = translate(vec3(SCREEN_WIDTH / 64, SCREEN_HEIGHT / 64, 0));
 
-  mat4 model = scale(vec3(32, 32, 32));
+  mat4 tileSize = scale(vec3(32, 32, 32));
 
-  GraphicsContext context { program, projection, center, model };
+  mat4 model = mat4();
+
+  GraphicsContext context { program, projection, tileSize, center, model };
 
   FPSCounter fps;
   while(!glfwWindowShouldClose(window)) {
@@ -683,21 +656,12 @@ int main() {
     glfwPollEvents();
 
     /* Update camera */
-    c.updatePosition(fps.delta());
-
-    static bool flag = true;
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && flag) {
-      c.seek(rand() % SCREEN_WIDTH, rand() % SCREEN_HEIGHT);
-      flag = false;
-    }
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE) {
-      flag = true;
-    }
-
     while (!keys.empty()) {
       pc.handleKey(keys.front());
       keys.pop();
     }
+
+    c.updatePosition(fps.delta());
 
     /* Render the scene */
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
