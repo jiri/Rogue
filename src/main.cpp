@@ -783,7 +783,7 @@ class Font {
       glBindVertexArray(0);  
     }
 
-    void render(std::string text, vec2 position, vec3 color = vec3(0)) {
+    void render(std::string text, vec2 position, vec3 color = vec3(0), float scale = 1.0f) {
       /* Activate corresponding shader */
       shader.use();
 
@@ -797,11 +797,11 @@ class Font {
       for (auto c = text.begin(); c != text.end(); c++) {
         Character ch = characters[*c];
 
-        GLfloat xpos = position.x + ch.bearing.x;
-        GLfloat ypos = position.y - ch.bearing.y;
+        GLfloat xpos = position.x + ch.bearing.x * scale;
+        GLfloat ypos = position.y - ch.bearing.y * scale;
 
-        GLfloat w = ch.size.x;
-        GLfloat h = ch.size.y;
+        GLfloat w = ch.size.x * scale;
+        GLfloat h = ch.size.y * scale;
 
         /* Update VBO for each character */
         GLfloat vertices[24] = {
@@ -825,7 +825,7 @@ class Font {
         /* Render quad */
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        position.x += (ch.advance >> 6);
+        position.x += (ch.advance >> 6) * scale;
       }
 
       shader.disuse();
@@ -940,7 +940,7 @@ int main() {
 
     context.disuse();
 
-    font.render("Hello, world!", vec2(12, 24), vec3(1));
+    font.render("Hello, world!", vec2(12, 24), vec3(1), 0.75);
 
     glfwSwapBuffers(window);
   }
