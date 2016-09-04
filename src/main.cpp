@@ -293,6 +293,43 @@ class GraphicsContext {
     }
 };
 
+class Renderable {
+  protected:
+    GLuint texture;
+    int textureWidth, textureHeight;
+
+    GLuint vao, vbo;
+    std::vector<GLfloat> vertices;
+
+  public:
+    Renderable() {
+      glGenTextures(1, &texture);
+      glGenVertexArrays(1, &vao);
+      glGenBuffers(1, &vbo);
+    }
+
+    virtual ~Renderable() {
+      glDeleteTextures(1, &texture);
+      glDeleteVertexArrays(1, &vao);
+      glDeleteBuffers(1, &vbo);
+    }
+
+    void loadTexture(std::string path) {
+      glBindTexture(GL_TEXTURE_2D, texture);
+
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+      uint8_t *image = SOIL_load_image(path.c_str(), &textureWidth, &textureHeight, 0, SOIL_LOAD_RGBA);
+
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+      SOIL_free_image_data(image);
+
+      glBindTexture(GL_TEXTURE_2D, 0);
+    }
+};
+
 class Entity {
   public:
     vec2 position;
@@ -327,21 +364,12 @@ class OrientedEntity : public Entity {
     virtual void render(GraphicsContext context) const = 0;
 };
 
-class Obelisk : public Entity {
-  private:
-    GLuint texture;
-    int textureWidth, textureHeight;
-
-    GLuint vao, vbo;
-    std::vector<GLfloat> vertices;
-
+class Obelisk : public Entity, Renderable {
   public:
     Obelisk(uint32_t x, uint32_t y)
       : Entity(x, y, false)
+      , Renderable()
     {
-      /* Create the texture */
-      glGenTextures(1, &texture);
-
       glBindTexture(GL_TEXTURE_2D, texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -365,30 +393,18 @@ class Obelisk : public Entity {
       });
 
       /* Generate the VAO */
-      glGenVertexArrays(1, &vao);
-      glGenBuffers(1, &vbo);
-
       glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
 
-      glBindBuffer(GL_ARRAY_BUFFER, vbo);
-      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+        /* Position attribute */
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+        glEnableVertexAttribArray(0);
 
-      /* Position attribute */
-      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
-      glEnableVertexAttribArray(0);
-
-      /* Color attribute */
-      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
-      glEnableVertexAttribArray(1);
-
+        /* Color attribute */
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+        glEnableVertexAttribArray(1);
       glBindVertexArray(0);
-    }
-
-    ~Obelisk() {
-      glDeleteTextures(1, &texture);
-
-      glDeleteVertexArrays(1, &vao);
-      glDeleteBuffers(1, &vbo);
     }
 
     bool interact() override {
@@ -399,7 +415,6 @@ class Obelisk : public Entity {
 
     void render(GraphicsContext context) const override {
       context.model *= translate(vec3(position.x, position.y, 0));
-
       context.updateContext();
 
       glBindVertexArray(vao);      
@@ -412,37 +427,17 @@ class Obelisk : public Entity {
     }
 };
 
-class Player : public OrientedEntity {
-  private:
-    GLuint texture;
-    int textureWidth, textureHeight;
-
-    GLuint vao, vbo;
-    std::vector<GLfloat> verticesN;
-    std::vector<GLfloat> verticesE;
-    std::vector<GLfloat> verticesS;
-    std::vector<GLfloat> verticesW;
-
+class Player : public OrientedEntity, Renderable {
   public:
     Player(uint32_t x, uint32_t y)
       : OrientedEntity(x, y, false)
+      , Renderable()
     {
       /* Create the texture */
-      glGenTextures(1, &texture);
-
-      glBindTexture(GL_TEXTURE_2D, texture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-        uint8_t *image = SOIL_load_image("res/player.png", &textureWidth, &textureHeight, 0, SOIL_LOAD_RGBA);
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-
-        SOIL_free_image_data(image);
-      glBindTexture(GL_TEXTURE_2D, 0);
+      loadTexture("res/player.png");
       
       /* Create the model */
-      verticesN.insert(verticesN.end(), {
+      vertices.insert(vertices.end(), {
           0.0f, -0.5f,  0.0f, 0.0f,
           0.0f,  1.0f,  0.0f, 1.0f,
           1.0f,  1.0f,  .25f, 1.0f,
@@ -451,7 +446,7 @@ class Player : public OrientedEntity {
           1.0f, -0.5f,  .25f, 0.0f,
           1.0f,  1.0f,  .25f, 1.0f,
       });
-      verticesE.insert(verticesE.end(), {
+      vertices.insert(vertices.end(), {
           0.0f, -0.5f,  .25f, 0.0f,
           0.0f,  1.0f,  .25f, 1.0f,
           1.0f,  1.0f,  0.5f, 1.0f,
@@ -460,7 +455,7 @@ class Player : public OrientedEntity {
           1.0f, -0.5f,  0.5f, 0.0f,
           1.0f,  1.0f,  0.5f, 1.0f,
       });
-      verticesS.insert(verticesS.end(), {
+      vertices.insert(vertices.end(), {
           0.0f, -0.5f,  0.5f, 0.0f,
           0.0f,  1.0f,  0.5f, 1.0f,
           1.0f,  1.0f,  .75f, 1.0f,
@@ -469,7 +464,7 @@ class Player : public OrientedEntity {
           1.0f, -0.5f,  .75f, 0.0f,
           1.0f,  1.0f,  .75f, 1.0f,
       });
-      verticesW.insert(verticesW.end(), {
+      vertices.insert(vertices.end(), {
           0.0f, -0.5f,  .75f, 0.0f,
           0.0f,  1.0f,  .75f, 1.0f,
           1.0f,  1.0f,  1.0f, 1.0f,
@@ -480,22 +475,17 @@ class Player : public OrientedEntity {
       });
 
       /* Generate the VAO */
-      glGenVertexArrays(1, &vao);
-      glGenBuffers(1, &vbo);
-
       glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
 
-      glBindBuffer(GL_ARRAY_BUFFER, vbo);
-      // glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+        /* Position attribute */
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+        glEnableVertexAttribArray(0);
 
-      /* Position attribute */
-      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
-      glEnableVertexAttribArray(0);
-
-      /* Color attribute */
-      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
-      glEnableVertexAttribArray(1);
-
+        /* Color attribute */
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+        glEnableVertexAttribArray(1);
       glBindVertexArray(0);
     }
 
@@ -504,31 +494,13 @@ class Player : public OrientedEntity {
     };
 
     void render(GraphicsContext context) const override {
-      /* FIXME: HAHA EWWW */
-
       context.model *= translate(vec3(position.x, position.y, 0));
       context.updateContext();
-
-      glBindBuffer(GL_ARRAY_BUFFER, vbo);
-      switch (orientation) {
-        case N:
-          glBufferData(GL_ARRAY_BUFFER, verticesN.size() * sizeof(GLfloat), verticesN.data(), GL_STATIC_DRAW);
-          break;                                                                 
-        case E:                                                                  
-          glBufferData(GL_ARRAY_BUFFER, verticesE.size() * sizeof(GLfloat), verticesE.data(), GL_STATIC_DRAW);
-          break;                                                                 
-        case S:                                                                  
-          glBufferData(GL_ARRAY_BUFFER, verticesS.size() * sizeof(GLfloat), verticesS.data(), GL_STATIC_DRAW);
-          break;                                                                 
-        case W:                                                                  
-          glBufferData(GL_ARRAY_BUFFER, verticesW.size() * sizeof(GLfloat), verticesW.data(), GL_STATIC_DRAW);
-          break;
-      }
 
       glBindVertexArray(vao);      
       glBindTexture(GL_TEXTURE_2D, texture);
 
-      glDrawArrays(GL_TRIANGLES, 0, verticesN.size());
+      glDrawArrays(GL_TRIANGLES, orientation * 6, 6);
 
       glBindTexture(GL_TEXTURE_2D, 0);
       glBindVertexArray(0);
