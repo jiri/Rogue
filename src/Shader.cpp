@@ -42,18 +42,18 @@ GLuint Shader::create_shader(GLenum type, const char *path) {
 
   /* Check for errors */
   GLint result = GL_FALSE;
-  int info_log_length;
+  int info_log_length = 0;
 
   glGetShaderiv(shader_id, GL_COMPILE_STATUS, &result);
   glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &info_log_length);
 
-  if (info_log_length > 0) {
+  if (info_log_length > 1) {
     using namespace std;
 
     char *error_message = (char *) calloc(info_log_length + 1, 1);
     glGetShaderInfoLog(shader_id, info_log_length, nullptr, error_message);
 
-    cerr << "Problem when compiling shader '" << path << "':" << endl;
+    cerr << "[" << result << "] Problem when compiling shader '" << path << "':" << endl;
     cerr << error_message << endl;
 
     free(error_message);
@@ -75,12 +75,12 @@ GLuint Shader::create_program(const char *vertpath, const char *fragpath) {
 
   /* Check for errors */
   GLint result = GL_FALSE;
-  int info_log_length;
+  int info_log_length = 0;
 
   glGetProgramiv(program_id, GL_LINK_STATUS, &result);
   glGetProgramiv(program_id, GL_INFO_LOG_LENGTH, &info_log_length);
 
-  if (info_log_length > 0) {
+  if (info_log_length > 1) {
     using namespace std;
 
     char *error_message = (char *) calloc(info_log_length + 1, 1);

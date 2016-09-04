@@ -118,7 +118,7 @@ class Font {
       glBindVertexArray(0);  
     }
 
-    void render(std::string text, vec2 position, vec3 color = vec3(0), float scale = 1.0f) {
+    void render(std::string text, vec2 position, vec4 color = vec4(0), float scale = 1.0f) {
       /* Activate corresponding shader */
       shader.use();
 
@@ -170,90 +170,6 @@ class Font {
     }
 };
 
-class LogWindow {
-  private:
-    vec2 position;
-
-    std::vector<std::string> messages;
-    uint32_t messageCount;
-
-    Font & font;
-
-    Shader shader;
-    GLuint vao, vbo;
-    std::vector<GLfloat> vertices;
-
-  public:
-    LogWindow(const vec2 & p, uint32_t mc, Font & f)
-      : position(p)
-      , messageCount(mc)
-      , font(f)
-      , shader("res/ui.vert", "res/ui.frag")
-    {
-
-      vertices.insert(vertices.end(), {
-        p.x - 4,       p.y + 4,
-        p.x - 4 + 480, p.y + 4,
-        p.x - 4,       p.y + 4 - 120,
-
-        p.x - 4 + 480, p.y + 4,
-        p.x - 4,       p.y + 4 - 120,
-        p.x - 4 + 480, p.y + 4 - 120,
-      });
-
-      glGenVertexArrays(1, &vao);
-      glGenBuffers(1, &vbo);
-
-      glBindVertexArray(vao);
-
-      glBindBuffer(GL_ARRAY_BUFFER, vbo);
-      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
-
-      /* Position attribute */
-      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
-      glEnableVertexAttribArray(0);
-
-      glBindVertexArray(0);
-    }
-
-    void render() {
-      if (messages.size() > messageCount) {
-        messages.resize(messageCount);
-      }
-
-      shader.use();
-
-      shader.setUniform("projection", ortho(0.0f, (float)SCREEN_WIDTH, (float) SCREEN_HEIGHT, 0.0f));
-
-      glBindVertexArray(vao);
-      glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-      glBindVertexArray(0);
-
-      shader.disuse();
-
-      for (uint32_t i = 0; i < messages.size(); i++) {
-        font.render(messages[messages.size() - i - 1], vec2(position.x, position.y - i * 12), vec3(1.0 - (1.0 / messageCount) * i), 0.75);
-      }
-    }
-
-    void log(std::string message) {
-      messages.push_back(message);
-    }
-};
-
-class Logger {
-  public:
-    static LogWindow * window;
-
-    static void log(std::string message) {
-      if (window != nullptr) {
-        window->log(message);
-      }
-    }
-};
-
-LogWindow * Logger::window;
-
 class GraphicsContext {
   private:
     Shader & shader;
@@ -288,6 +204,43 @@ class GraphicsContext {
     }
 };
 
+class Renderable {
+  protected:
+    GLuint texture;
+    int textureWidth, textureHeight;
+
+    GLuint vao, vbo;
+    std::vector<GLfloat> vertices;
+
+  public:
+    Renderable() {
+      glGenTextures(1, &texture);
+      glGenVertexArrays(1, &vao);
+      glGenBuffers(1, &vbo);
+    }
+
+    virtual ~Renderable() {
+      glDeleteTextures(1, &texture);
+      glDeleteVertexArrays(1, &vao);
+      glDeleteBuffers(1, &vbo);
+    }
+
+    void loadTexture(std::string path) {
+      glBindTexture(GL_TEXTURE_2D, texture);
+
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+      uint8_t *image = SOIL_load_image(path.c_str(), &textureWidth, &textureHeight, 0, SOIL_LOAD_RGBA);
+
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+      SOIL_free_image_data(image);
+
+      glBindTexture(GL_TEXTURE_2D, 0);
+    }
+};
+
 class Entity {
   public:
     vec2 position;
@@ -306,6 +259,89 @@ class Entity {
     virtual void render(GraphicsContext context) const = 0;
 };
 
+class LogWindow : public Renderable {
+  private:
+    vec2 position;
+    vec2 size;
+
+    std::vector<std::string> messages;
+    uint32_t messageCount;
+
+    Font & font;
+    Shader shader;
+
+  public:
+    LogWindow(const vec2 & p, const vec2 & s, uint32_t mc, Font & f)
+      : Renderable()
+      , position(p)
+      , size(s)
+      , messageCount(mc)
+      , font(f)
+      , shader("res/ui.vert", "res/ui.frag")
+    {
+      vertices.insert(vertices.end(), {
+        p.x - 4,          p.y + 4,
+        p.x - 4 + size.x, p.y + 4,
+        p.x - 4,          p.y + 4 - size.y,
+
+        p.x - 4 + size.x, p.y + 4,
+        p.x - 4,          p.y + 4 - size.y,
+        p.x - 4 + size.x, p.y + 4 - size.y,
+      });
+
+      glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+
+        /* Position attribute */
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
+        glEnableVertexAttribArray(0);
+      glBindVertexArray(0);
+    }
+
+    void render() {
+      if (messages.size() > messageCount) {
+        messages.resize(messageCount);
+      }
+
+      shader.use();
+
+      shader.setUniform("projection", ortho(0.0f, (float)SCREEN_WIDTH, (float) SCREEN_HEIGHT, 0.0f));
+
+      glBindVertexArray(vao);
+      glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+      glBindVertexArray(0);
+
+      shader.disuse();
+
+      for (uint32_t i = 0; i < messages.size(); i++) {
+        font.render(
+            messages[messages.size() - i - 1],
+            vec2(position.x, position.y - i * 12),
+            vec4(1.0f, 1.0f, 1.0f, 1.0f - (1.0f / messageCount) * i),
+            0.75f
+        );
+      }
+    }
+
+    void log(std::string message) {
+      messages.push_back(message);
+    }
+};
+
+class Logger {
+  public:
+    static LogWindow * window;
+
+    static void log(std::string message) {
+      if (window != nullptr) {
+        window->log(message);
+      }
+    }
+};
+
+LogWindow * Logger::window;
+
 enum Orientation { N = 0, E, S, W };
 
 class OrientedEntity : public Entity {
@@ -322,21 +358,12 @@ class OrientedEntity : public Entity {
     virtual void render(GraphicsContext context) const = 0;
 };
 
-class Obelisk : public Entity {
-  private:
-    GLuint texture;
-    int textureWidth, textureHeight;
-
-    GLuint vao, vbo;
-    std::vector<GLfloat> vertices;
-
+class Obelisk : public Entity, Renderable {
   public:
     Obelisk(uint32_t x, uint32_t y)
       : Entity(x, y, false)
+      , Renderable()
     {
-      /* Create the texture */
-      glGenTextures(1, &texture);
-
       glBindTexture(GL_TEXTURE_2D, texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -360,41 +387,28 @@ class Obelisk : public Entity {
       });
 
       /* Generate the VAO */
-      glGenVertexArrays(1, &vao);
-      glGenBuffers(1, &vbo);
-
       glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
 
-      glBindBuffer(GL_ARRAY_BUFFER, vbo);
-      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+        /* Position attribute */
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+        glEnableVertexAttribArray(0);
 
-      /* Position attribute */
-      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
-      glEnableVertexAttribArray(0);
-
-      /* Color attribute */
-      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
-      glEnableVertexAttribArray(1);
-
+        /* Color attribute */
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+        glEnableVertexAttribArray(1);
       glBindVertexArray(0);
     }
 
-    ~Obelisk() {
-      glDeleteTextures(1, &texture);
-
-      glDeleteVertexArrays(1, &vao);
-      glDeleteBuffers(1, &vbo);
-    }
-
     bool interact() override {
-      Logger::log("Stuff is inscribed in the stone in an acient script");
-      Logger::log("You can't read it for shit");
+      Logger::log("Stuff is inscribed in the stone in an ancient script.");
+      Logger::log("You can't read it for shit.");
       return true;
     }
 
     void render(GraphicsContext context) const override {
       context.model *= translate(vec3(position.x, position.y, 0));
-
       context.updateContext();
 
       glBindVertexArray(vao);      
@@ -407,37 +421,17 @@ class Obelisk : public Entity {
     }
 };
 
-class Player : public OrientedEntity {
-  private:
-    GLuint texture;
-    int textureWidth, textureHeight;
-
-    GLuint vao, vbo;
-    std::vector<GLfloat> verticesN;
-    std::vector<GLfloat> verticesE;
-    std::vector<GLfloat> verticesS;
-    std::vector<GLfloat> verticesW;
-
+class Player : public OrientedEntity, Renderable {
   public:
     Player(uint32_t x, uint32_t y)
       : OrientedEntity(x, y, false)
+      , Renderable()
     {
       /* Create the texture */
-      glGenTextures(1, &texture);
-
-      glBindTexture(GL_TEXTURE_2D, texture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-        uint8_t *image = SOIL_load_image("res/player.png", &textureWidth, &textureHeight, 0, SOIL_LOAD_RGBA);
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-
-        SOIL_free_image_data(image);
-      glBindTexture(GL_TEXTURE_2D, 0);
+      loadTexture("res/player.png");
       
       /* Create the model */
-      verticesN.insert(verticesN.end(), {
+      vertices.insert(vertices.end(), {
           0.0f, -0.5f,  0.0f, 0.0f,
           0.0f,  1.0f,  0.0f, 1.0f,
           1.0f,  1.0f,  .25f, 1.0f,
@@ -446,7 +440,7 @@ class Player : public OrientedEntity {
           1.0f, -0.5f,  .25f, 0.0f,
           1.0f,  1.0f,  .25f, 1.0f,
       });
-      verticesE.insert(verticesE.end(), {
+      vertices.insert(vertices.end(), {
           0.0f, -0.5f,  .25f, 0.0f,
           0.0f,  1.0f,  .25f, 1.0f,
           1.0f,  1.0f,  0.5f, 1.0f,
@@ -455,7 +449,7 @@ class Player : public OrientedEntity {
           1.0f, -0.5f,  0.5f, 0.0f,
           1.0f,  1.0f,  0.5f, 1.0f,
       });
-      verticesS.insert(verticesS.end(), {
+      vertices.insert(vertices.end(), {
           0.0f, -0.5f,  0.5f, 0.0f,
           0.0f,  1.0f,  0.5f, 1.0f,
           1.0f,  1.0f,  .75f, 1.0f,
@@ -464,7 +458,7 @@ class Player : public OrientedEntity {
           1.0f, -0.5f,  .75f, 0.0f,
           1.0f,  1.0f,  .75f, 1.0f,
       });
-      verticesW.insert(verticesW.end(), {
+      vertices.insert(vertices.end(), {
           0.0f, -0.5f,  .75f, 0.0f,
           0.0f,  1.0f,  .75f, 1.0f,
           1.0f,  1.0f,  1.0f, 1.0f,
@@ -475,22 +469,17 @@ class Player : public OrientedEntity {
       });
 
       /* Generate the VAO */
-      glGenVertexArrays(1, &vao);
-      glGenBuffers(1, &vbo);
-
       glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
 
-      glBindBuffer(GL_ARRAY_BUFFER, vbo);
-      // glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+        /* Position attribute */
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+        glEnableVertexAttribArray(0);
 
-      /* Position attribute */
-      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
-      glEnableVertexAttribArray(0);
-
-      /* Color attribute */
-      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
-      glEnableVertexAttribArray(1);
-
+        /* Color attribute */
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+        glEnableVertexAttribArray(1);
       glBindVertexArray(0);
     }
 
@@ -499,31 +488,13 @@ class Player : public OrientedEntity {
     };
 
     void render(GraphicsContext context) const override {
-      /* FIXME: HAHA EWWW */
-
       context.model *= translate(vec3(position.x, position.y, 0));
       context.updateContext();
-
-      glBindBuffer(GL_ARRAY_BUFFER, vbo);
-      switch (orientation) {
-        case N:
-          glBufferData(GL_ARRAY_BUFFER, verticesN.size() * sizeof(GLfloat), verticesN.data(), GL_STATIC_DRAW);
-          break;                                                                 
-        case E:                                                                  
-          glBufferData(GL_ARRAY_BUFFER, verticesE.size() * sizeof(GLfloat), verticesE.data(), GL_STATIC_DRAW);
-          break;                                                                 
-        case S:                                                                  
-          glBufferData(GL_ARRAY_BUFFER, verticesS.size() * sizeof(GLfloat), verticesS.data(), GL_STATIC_DRAW);
-          break;                                                                 
-        case W:                                                                  
-          glBufferData(GL_ARRAY_BUFFER, verticesW.size() * sizeof(GLfloat), verticesW.data(), GL_STATIC_DRAW);
-          break;
-      }
 
       glBindVertexArray(vao);      
       glBindTexture(GL_TEXTURE_2D, texture);
 
-      glDrawArrays(GL_TRIANGLES, 0, verticesN.size());
+      glDrawArrays(GL_TRIANGLES, orientation * 6, 6);
 
       glBindTexture(GL_TEXTURE_2D, 0);
       glBindVertexArray(0);
@@ -593,12 +564,14 @@ class Map {
 
     GLuint vao, vbo;
     std::vector<GLfloat> vertices;
+    Shader s;
 
     Map(uint32_t w, uint32_t h, const TileSet & t)
       : width(w)
       , height(h)
       , tileSet(t)
       , map { new Tile [w * h] }
+      , s("res/simple.vsh", "res/simple.fsh")
     {
       /* Generate the map */
       for (uint32_t y = 0; y < height; y++) {
@@ -614,17 +587,19 @@ class Map {
       }
 
       entities.push_back(new Obelisk { 5, 5 });
-      entities.push_back(new Obelisk { 7, 7 });
 
       /* Generate the model */
-      vertices.insert(vertices.end(), {
-          0.0f,     0.0f,      1.0f, 1.0f,
-          (float)w, (float)h,  0.0f, 0.0f,
-          0.0f,     (float)h,  1.0f, 0.0f,
+      auto fw = static_cast<float>(w);
+      auto fh = static_cast<float>(h);
 
-          (float)w, (float)h,  0.0f, 0.0f,
-          0.0f,     0.0f,      1.0f, 1.0f,
-          (float)w, 0.0f,      0.0f, 1.0f,
+      vertices.insert(vertices.end(), {
+          0.0f, 0.0f,  1.0f, 1.0f,
+          fw,   fh,    0.0f, 0.0f,
+          0.0f, fh,    1.0f, 0.0f,
+
+          fw,   fh,    0.0f, 0.0f,
+          0.0f, 0.0f,  1.0f, 1.0f,
+          fw,   0.0f,  0.0f, 1.0f,
 
       });
 
@@ -733,8 +708,6 @@ class Map {
       /* Render to the framebuffer */
       glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
       glViewport(0, 0, width * 16, height * 16);
-
-      Shader s("res/simple.vsh", "res/simple.fsh");
 
       s.use();
 
@@ -995,9 +968,9 @@ int main() {
     mat4()
   };
 
-  Font font(ft, "res/Minecraftia.ttf");
+  Font font(ft, "res/PxPlus_IBM_VGA8.ttf");
 
-  LogWindow l(vec2(12, SCREEN_HEIGHT - 12), 8, font);
+  LogWindow l(vec2(12, SCREEN_HEIGHT - 12), vec2(340, 120), 8, font);
   Logger::window = &l;
 
   FPSCounter fps;
