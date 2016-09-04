@@ -47,6 +47,8 @@ GLuint Shader::create_shader(GLenum type, const char *path) {
   glGetShaderiv(shader_id, GL_COMPILE_STATUS, &result);
   glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &info_log_length);
 
+  printf("info_log_length: %d\n", info_log_length);
+
   if (info_log_length > 0) {
     using namespace std;
 
