@@ -972,7 +972,7 @@ int main() {
     mat4()
   };
 
-  Font font(ft, "res/Minecraftia.ttf");
+  Font font(ft, "res/PxPlus_IBM_VGA8.ttf");
 
   LogWindow l(vec2(12, SCREEN_HEIGHT - 12), 8, font);
   Logger::window = &l;
