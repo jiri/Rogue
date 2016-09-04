@@ -570,12 +570,14 @@ class Map {
 
     GLuint vao, vbo;
     std::vector<GLfloat> vertices;
+    Shader s;
 
     Map(uint32_t w, uint32_t h, const TileSet & t)
       : width(w)
       , height(h)
       , tileSet(t)
       , map { new Tile [w * h] }
+      , s("res/simple.vsh", "res/simple.fsh")
     {
       /* Generate the map */
       for (uint32_t y = 0; y < height; y++) {
@@ -710,8 +712,6 @@ class Map {
       /* Render to the framebuffer */
       glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
       glViewport(0, 0, width * 16, height * 16);
-
-      Shader s("res/simple.vsh", "res/simple.fsh");
 
       s.use();
 
