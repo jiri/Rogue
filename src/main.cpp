@@ -118,7 +118,7 @@ class Font {
       glBindVertexArray(0);  
     }
 
-    void render(std::string text, vec2 position, vec3 color = vec3(0), float scale = 1.0f) {
+    void render(std::string text, vec2 position, vec4 color = vec4(0), float scale = 1.0f) {
       /* Activate corresponding shader */
       shader.use();
 
@@ -232,7 +232,12 @@ class LogWindow {
       shader.disuse();
 
       for (uint32_t i = 0; i < messages.size(); i++) {
-        font.render(messages[messages.size() - i - 1], vec2(position.x, position.y - i * 12), vec3(1.0 - (1.0 / messageCount) * i), 0.75);
+        font.render(
+            messages[messages.size() - i - 1],
+            vec2(position.x, position.y - i * 12),
+            vec4(1.0f, 1.0f, 1.0f, 1.0f - (1.0f / messageCount) * i),
+            0.75f
+        );
       }
     }
 
