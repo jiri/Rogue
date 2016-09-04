@@ -279,14 +279,90 @@ class LogWindow : public Renderable {
       , font(f)
       , shader("res/ui.vert", "res/ui.frag")
     {
-      vertices.insert(vertices.end(), {
-        p.x - 4,          p.y + 4,
-        p.x - 4 + size.x, p.y + 4,
-        p.x - 4,          p.y + 4 - size.y,
+      loadTexture("res/gui2.png");
 
-        p.x - 4 + size.x, p.y + 4,
-        p.x - 4,          p.y + 4 - size.y,
-        p.x - 4 + size.x, p.y + 4 - size.y,
+      // +-+---+-+
+      // |0| 1 |2|
+      // +-+---+-+
+      // | |   | |
+      // |3| 4 |5|
+      // | |   | |
+      // +-+---+-+
+      // |6| 7 |8|
+      // +-+---+-+
+
+      vertices.insert(vertices.end(), {
+          p.x - 4,          p.y - 4,          0.0f, 0.0f,
+          p.x,              p.y,              .25f, .25f,
+          p.x,              p.y - 4,          .25f, 0.0f,
+
+          p.x - 4,          p.y - 4,          0.0f, 0.0f,
+          p.x,              p.y,              .25f, .25f,
+          p.x - 4,          p.y,              0.0f, .25f,
+
+          p.x,              p.y - 4,          .25f, 0.0f,
+          p.x + size.x,     p.y,              .75f, .25f,
+          p.x + size.x,     p.y - 4,          .75f, 0.0f,
+
+          p.x,              p.y - 4,          .25f, 0.0f,
+          p.x + size.x,     p.y,              .75f, .25f,
+          p.x,              p.y,              .25f, .25f,
+
+          p.x + size.x,     p.y - 4,          .75f, 0.0f,
+          p.x + size.x + 4, p.y,              1.0f, .25f,
+          p.x + size.x + 4, p.y - 4,          1.0f, 0.0f,
+
+          p.x + size.x,     p.y - 4,          .75f, 0.0f,
+          p.x + size.x + 4, p.y,              1.0f, .25f,
+          p.x + size.x,     p.y,              .75f, .25f,
+
+          p.x - 4,          p.y,              0.0f, .25f,
+          p.x,              p.y + size.y,     .25f, .75f,
+          p.x,              p.y,              .25f, .25f,
+
+          p.x - 4,          p.y,              0.0f, .25f,
+          p.x,              p.y + size.y,     .25f, .75f,
+          p.x - 4,          p.y + size.y,     0.0f, .75f,
+
+          p.x,              p.y,              .25f, .25f,
+          p.x + size.x,     p.y + size.y,     .75f, .75f,
+          p.x + size.x,     p.y,              .75f, .25f,
+
+          p.x,              p.y,              .25f, .25f,
+          p.x + size.x,     p.y + size.y,     .75f, .75f,
+          p.x,              p.y + size.y,     .25f, .75f,
+
+          p.x + size.x,     p.y,              .75f, .25f,
+          p.x + size.x + 4, p.y + size.y,     1.0f, .75f,
+          p.x + size.x + 4, p.y,              1.0f, .25f,
+
+          p.x + size.x,     p.y,              .75f, .25f,
+          p.x + size.x + 4, p.y + size.y,     1.0f, .75f,
+          p.x + size.x,     p.y + size.y,     .75f, .75f,
+
+          p.x - 4,          p.y + size.y,     0.0f, .75f,
+          p.x,              p.y + size.y + 4, .25f, 1.0f,
+          p.x,              p.y + size.y,     .25f, .75f,
+
+          p.x - 4,          p.y + size.y,     0.0f, .75f,
+          p.x,              p.y + size.y + 4, .25f, 1.0f,
+          p.x - 4,          p.y + size.y + 4, 0.0f, 1.0f,
+
+          p.x,              p.y + size.y,     .25f, .75f,
+          p.x + size.x,     p.y + size.y + 4, .75f, 1.0f,
+          p.x + size.x,     p.y + size.y,     .75f, .75f,
+
+          p.x,              p.y + size.y,     .25f, .75f,
+          p.x + size.x,     p.y + size.y + 4, .75f, 1.0f,
+          p.x,              p.y + size.y + 4, .25f, 1.0f,
+
+          p.x + size.x,     p.y + size.y,     .75f, .75f,
+          p.x + size.x + 4, p.y + size.y + 4, 1.0f, 1.0f,
+          p.x + size.x + 4, p.y + size.y,     1.0f, .75f,
+
+          p.x + size.x,     p.y + size.y,     .75f, .75f,
+          p.x + size.x + 4, p.y + size.y + 4, 1.0f, 1.0f,
+          p.x + size.x,     p.y + size.y + 4, .75f, 1.0f,
       });
 
       glBindVertexArray(vao);
@@ -294,8 +370,12 @@ class LogWindow : public Renderable {
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
 
         /* Position attribute */
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
         glEnableVertexAttribArray(0);
+
+        /* UV attribute */
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+        glEnableVertexAttribArray(1);
       glBindVertexArray(0);
     }
 
@@ -308,8 +388,16 @@ class LogWindow : public Renderable {
 
       shader.setUniform("projection", ortho(0.0f, (float)SCREEN_WIDTH, (float) SCREEN_HEIGHT, 0.0f));
 
+      shader.setUniform("texture", texture);
+      shader.setUniform("position", position);
+      shader.setUniform("size", size);
+
       glBindVertexArray(vao);
+      glBindTexture(GL_TEXTURE_2D, texture);
+
       glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+
+      glBindTexture(GL_TEXTURE_2D, 0);
       glBindVertexArray(0);
 
       shader.disuse();
@@ -317,7 +405,7 @@ class LogWindow : public Renderable {
       for (uint32_t i = 0; i < messages.size(); i++) {
         font.render(
             messages[messages.size() - i - 1],
-            vec2(position.x, position.y - i * 12),
+            vec2(position.x + 2, position.y + size.y - i * 12 - 2),
             vec4(1.0f, 1.0f, 1.0f, 1.0f - (1.0f / messageCount) * i),
             0.75f
         );
@@ -325,7 +413,7 @@ class LogWindow : public Renderable {
     }
 
     void log(std::string message) {
-      messages.push_back(message);
+      messages.insert(messages.begin(), message);
     }
 };
 
@@ -970,7 +1058,7 @@ int main() {
 
   Font font(ft, "res/PxPlus_IBM_VGA8.ttf");
 
-  LogWindow l(vec2(12, SCREEN_HEIGHT - 12), vec2(340, 120), 8, font);
+  LogWindow l(vec2(12, SCREEN_HEIGHT - 12 - 120), vec2(340, 120), 9, font);
   Logger::window = &l;
 
   FPSCounter fps;
