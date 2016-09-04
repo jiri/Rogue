@@ -75,12 +75,12 @@ GLuint Shader::create_program(const char *vertpath, const char *fragpath) {
 
   /* Check for errors */
   GLint result = GL_FALSE;
-  int info_log_length;
+  int info_log_length = 0;
 
   glGetProgramiv(program_id, GL_LINK_STATUS, &result);
   glGetProgramiv(program_id, GL_INFO_LOG_LENGTH, &info_log_length);
 
-  if (info_log_length > 0) {
+  if (info_log_length > 1) {
     using namespace std;
 
     char *error_message = (char *) calloc(info_log_length + 1, 1);
