@@ -408,8 +408,8 @@ class Obelisk : public Entity, Renderable {
     }
 
     bool interact() override {
-      Logger::log("Stuff is inscribed in the stone in an acient script");
-      Logger::log("You can't read it for shit");
+      Logger::log("Stuff is inscribed in the stone in an ancient script.");
+      Logger::log("You can't read it for shit.");
       return true;
     }
 
