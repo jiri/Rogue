@@ -21,11 +21,14 @@ find_package(glm REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLFW REQUIRED glfw3)
 
+find_package(Freetype REQUIRED)
+
 include_directories(
   ${OPENGL_INCLUDE_DIRS}
   ${GLEW_INCLUDE_DIRS}
   ${GLM_INCLUDE_DIRS}
   ${GLFW_INCLUDE_DIRS}
+  ${FREETYPE_INCLUDE_DIRS}
 )
 target_link_libraries(
   ${PROJECT_NAME}
@@ -34,6 +37,9 @@ target_link_libraries(
   ${OPENGL_LIBRARIES}
   ${GLEW_LIBRARIES}
   ${GLFW_LIBRARIES}
+
+  # Freetype
+  ${FREETYPE_LIBRARIES}
 )
 
 # Set up SOIL
