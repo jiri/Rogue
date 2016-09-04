@@ -170,95 +170,6 @@ class Font {
     }
 };
 
-class LogWindow {
-  private:
-    vec2 position;
-
-    std::vector<std::string> messages;
-    uint32_t messageCount;
-
-    Font & font;
-
-    Shader shader;
-    GLuint vao, vbo;
-    std::vector<GLfloat> vertices;
-
-  public:
-    LogWindow(const vec2 & p, uint32_t mc, Font & f)
-      : position(p)
-      , messageCount(mc)
-      , font(f)
-      , shader("res/ui.vert", "res/ui.frag")
-    {
-
-      vertices.insert(vertices.end(), {
-        p.x - 4,       p.y + 4,
-        p.x - 4 + 480, p.y + 4,
-        p.x - 4,       p.y + 4 - 120,
-
-        p.x - 4 + 480, p.y + 4,
-        p.x - 4,       p.y + 4 - 120,
-        p.x - 4 + 480, p.y + 4 - 120,
-      });
-
-      glGenVertexArrays(1, &vao);
-      glGenBuffers(1, &vbo);
-
-      glBindVertexArray(vao);
-
-      glBindBuffer(GL_ARRAY_BUFFER, vbo);
-      glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
-
-      /* Position attribute */
-      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
-      glEnableVertexAttribArray(0);
-
-      glBindVertexArray(0);
-    }
-
-    void render() {
-      if (messages.size() > messageCount) {
-        messages.resize(messageCount);
-      }
-
-      shader.use();
-
-      shader.setUniform("projection", ortho(0.0f, (float)SCREEN_WIDTH, (float) SCREEN_HEIGHT, 0.0f));
-
-      glBindVertexArray(vao);
-      glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-      glBindVertexArray(0);
-
-      shader.disuse();
-
-      for (uint32_t i = 0; i < messages.size(); i++) {
-        font.render(
-            messages[messages.size() - i - 1],
-            vec2(position.x, position.y - i * 12),
-            vec4(1.0f, 1.0f, 1.0f, 1.0f - (1.0f / messageCount) * i),
-            0.75f
-        );
-      }
-    }
-
-    void log(std::string message) {
-      messages.push_back(message);
-    }
-};
-
-class Logger {
-  public:
-    static LogWindow * window;
-
-    static void log(std::string message) {
-      if (window != nullptr) {
-        window->log(message);
-      }
-    }
-};
-
-LogWindow * Logger::window;
-
 class GraphicsContext {
   private:
     Shader & shader;
@@ -347,6 +258,89 @@ class Entity {
 
     virtual void render(GraphicsContext context) const = 0;
 };
+
+class LogWindow : public Renderable {
+  private:
+    vec2 position;
+    vec2 size;
+
+    std::vector<std::string> messages;
+    uint32_t messageCount;
+
+    Font & font;
+    Shader shader;
+
+  public:
+    LogWindow(const vec2 & p, const vec2 & s, uint32_t mc, Font & f)
+      : Renderable()
+      , position(p)
+      , size(s)
+      , messageCount(mc)
+      , font(f)
+      , shader("res/ui.vert", "res/ui.frag")
+    {
+      vertices.insert(vertices.end(), {
+        p.x - 4,          p.y + 4,
+        p.x - 4 + size.x, p.y + 4,
+        p.x - 4,          p.y + 4 - size.y,
+
+        p.x - 4 + size.x, p.y + 4,
+        p.x - 4,          p.y + 4 - size.y,
+        p.x - 4 + size.x, p.y + 4 - size.y,
+      });
+
+      glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+
+        /* Position attribute */
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (GLvoid*)0);
+        glEnableVertexAttribArray(0);
+      glBindVertexArray(0);
+    }
+
+    void render() {
+      if (messages.size() > messageCount) {
+        messages.resize(messageCount);
+      }
+
+      shader.use();
+
+      shader.setUniform("projection", ortho(0.0f, (float)SCREEN_WIDTH, (float) SCREEN_HEIGHT, 0.0f));
+
+      glBindVertexArray(vao);
+      glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+      glBindVertexArray(0);
+
+      shader.disuse();
+
+      for (uint32_t i = 0; i < messages.size(); i++) {
+        font.render(
+            messages[messages.size() - i - 1],
+            vec2(position.x, position.y - i * 12),
+            vec4(1.0f, 1.0f, 1.0f, 1.0f - (1.0f / messageCount) * i),
+            0.75f
+        );
+      }
+    }
+
+    void log(std::string message) {
+      messages.push_back(message);
+    }
+};
+
+class Logger {
+  public:
+    static LogWindow * window;
+
+    static void log(std::string message) {
+      if (window != nullptr) {
+        window->log(message);
+      }
+    }
+};
+
+LogWindow * Logger::window;
 
 enum Orientation { N = 0, E, S, W };
 
@@ -593,17 +587,19 @@ class Map {
       }
 
       entities.push_back(new Obelisk { 5, 5 });
-      entities.push_back(new Obelisk { 7, 7 });
 
       /* Generate the model */
-      vertices.insert(vertices.end(), {
-          0.0f,     0.0f,      1.0f, 1.0f,
-          (float)w, (float)h,  0.0f, 0.0f,
-          0.0f,     (float)h,  1.0f, 0.0f,
+      auto fw = static_cast<float>(w);
+      auto fh = static_cast<float>(h);
 
-          (float)w, (float)h,  0.0f, 0.0f,
-          0.0f,     0.0f,      1.0f, 1.0f,
-          (float)w, 0.0f,      0.0f, 1.0f,
+      vertices.insert(vertices.end(), {
+          0.0f, 0.0f,  1.0f, 1.0f,
+          fw,   fh,    0.0f, 0.0f,
+          0.0f, fh,    1.0f, 0.0f,
+
+          fw,   fh,    0.0f, 0.0f,
+          0.0f, 0.0f,  1.0f, 1.0f,
+          fw,   0.0f,  0.0f, 1.0f,
 
       });
 
@@ -974,7 +970,7 @@ int main() {
 
   Font font(ft, "res/PxPlus_IBM_VGA8.ttf");
 
-  LogWindow l(vec2(12, SCREEN_HEIGHT - 12), 8, font);
+  LogWindow l(vec2(12, SCREEN_HEIGHT - 12), vec2(340, 120), 8, font);
   Logger::window = &l;
 
   FPSCounter fps;
