@@ -417,6 +417,28 @@ class OrientedEntity : public Entity {
       : Entity(x, y, p)
       , orientation(o)
     { }
+
+    void turnTo(const Entity & e) {
+      if (e.position.x < position.x) {
+        orientation = W;
+        return;
+      }
+
+      if (e.position.x > position.x) {
+        orientation = E;
+        return;
+      }
+
+      if (e.position.y < position.y) {
+        orientation = N;
+        return;
+      }
+
+      if (e.position.y > position.y) {
+        orientation = S;
+        return;
+      }
+    }
 };
 
 class Obelisk : public Entity {
@@ -507,7 +529,9 @@ class Player : public OrientedEntity {
       glBindVertexArray(0);
     }
 
-    void interact(Entity &) override {
+    void interact(Entity & e) override {
+      turnTo(e);
+      Logger::log("Hello there!");
     }
 
     void render(GraphicsContext context) const override {
@@ -690,6 +714,7 @@ class Map {
 
       entities.push_back(new Obelisk { 5, 5 });
       entities.push_back(new Chest { 7, 7, S});
+      entities.push_back(new Player { 5, 9 });
 
       /* Generate the model */
       auto fw = static_cast<float>(w);
