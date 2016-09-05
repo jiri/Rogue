@@ -241,24 +241,6 @@ class Renderable {
     }
 };
 
-class Entity {
-  public:
-    vec2 position;
-
-    bool passable;
-
-    Entity(uint32_t x, uint32_t y, bool p)
-      : position(x, y)
-      , passable(p)
-    { }
-
-    virtual ~Entity() { }
-
-    virtual bool interact() = 0;
-
-    virtual void render(GraphicsContext context) const = 0;
-};
-
 class LogWindow : public Renderable {
   private:
     vec2 position;
@@ -391,6 +373,24 @@ LogWindow * Logger::window;
 
 enum Orientation { N = 0, E, S, W };
 
+class Entity {
+  public:
+    vec2 position;
+
+    bool passable;
+
+    Entity(uint32_t x, uint32_t y, bool p)
+      : position(x, y)
+      , passable(p)
+    { }
+
+    virtual ~Entity() { }
+
+    virtual void interact(Entity & other) = 0;
+
+    virtual void render(GraphicsContext context) const = 0;
+};
+
 class OrientedEntity : public Entity {
   public:
     Orientation orientation;
@@ -448,10 +448,9 @@ class Obelisk : public Entity, Renderable {
       glBindVertexArray(0);
     }
 
-    bool interact() override {
+    void interact(Entity &) override {
       Logger::log("Stuff is inscribed in the stone in an ancient script.");
       Logger::log("You can't read it for shit.");
-      return true;
     }
 
     void render(GraphicsContext context) const override {
@@ -530,8 +529,87 @@ class Player : public OrientedEntity, Renderable {
       glBindVertexArray(0);
     }
 
-    bool interact() override {
-      return false;
+    void interact(Entity &) override {
+    }
+
+    void render(GraphicsContext context) const override {
+      context.model *= translate(vec3(position.x, position.y, 0));
+      context.updateContext();
+
+      glBindVertexArray(vao);
+      glBindTexture(GL_TEXTURE_2D, texture);
+
+      glDrawArrays(GL_TRIANGLES, orientation * 6, 6);
+
+      glBindTexture(GL_TEXTURE_2D, 0);
+      glBindVertexArray(0);
+    }
+};
+
+class Chest : public OrientedEntity, Renderable {
+  public:
+    Chest(uint32_t x, uint32_t y, Orientation o = N)
+      : OrientedEntity(x, y, false, o)
+      , Renderable()
+    {
+      /* Create the texture */
+      loadTexture("res/chest.png");
+
+      /* Create the model */
+      vertices.insert(vertices.end(), {
+          0.0f,  0.0f,  0.0f, 0.0f,
+          0.0f,  1.0f,  0.0f, 1.0f,
+          1.0f,  1.0f,  .25f, 1.0f,
+                 
+          0.0f,  0.0f,  0.0f, 0.0f,
+          1.0f,  0.0f,  .25f, 0.0f,
+          1.0f,  1.0f,  .25f, 1.0f,
+      });
+      vertices.insert(vertices.end(), {
+          0.0f,  0.0f,  .25f, 0.0f,
+          0.0f,  1.0f,  .25f, 1.0f,
+          1.0f,  1.0f,  0.5f, 1.0f,
+                 
+          0.0f,  0.0f,  .25f, 0.0f,
+          1.0f,  0.0f,  0.5f, 0.0f,
+          1.0f,  1.0f,  0.5f, 1.0f,
+      });
+      vertices.insert(vertices.end(), {
+          0.0f,  0.0f,  0.5f, 0.0f,
+          0.0f,  1.0f,  0.5f, 1.0f,
+          1.0f,  1.0f,  .75f, 1.0f,
+                 
+          0.0f,  0.0f,  0.5f, 0.0f,
+          1.0f,  0.0f,  .75f, 0.0f,
+          1.0f,  1.0f,  .75f, 1.0f,
+      });
+      vertices.insert(vertices.end(), {
+          0.0f,  0.0f,  .75f, 0.0f,
+          0.0f,  1.0f,  .75f, 1.0f,
+          1.0f,  1.0f,  1.0f, 1.0f,
+                 
+          0.0f,  0.0f,  .75f, 0.0f,
+          1.0f,  0.0f,  1.0f, 0.0f,
+          1.0f,  1.0f,  1.0f, 1.0f,
+      });
+
+      /* Generate the VAO */
+      glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+
+        /* Position attribute */
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+        glEnableVertexAttribArray(0);
+
+        /* Color attribute */
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+        glEnableVertexAttribArray(1);
+      glBindVertexArray(0);
+    }
+
+    void interact(Entity & other) override {
+      Logger::log("TODO: Give stuff to player");
     }
 
     void render(GraphicsContext context) const override {
@@ -634,6 +712,7 @@ class Map {
       }
 
       entities.push_back(new Obelisk { 5, 5 });
+      entities.push_back(new Chest { 7, 7, S});
 
       /* Generate the model */
       auto fw = static_cast<float>(w);
@@ -918,7 +997,7 @@ class OrientedEntityController {
         auto e = map.getEntity(entity.position + delta);
 
         if (e != nullptr) {
-          e->interact();
+          e->interact(entity);
         }
 
         return true;
