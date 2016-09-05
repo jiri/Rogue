@@ -399,10 +399,6 @@ class OrientedEntity : public Entity {
       : Entity(x, y, p)
       , orientation(o)
     { }
-
-    virtual bool interact() = 0;
-
-    virtual void render(GraphicsContext context) const = 0;
 };
 
 class Obelisk : public Entity, Renderable {
