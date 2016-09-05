@@ -78,12 +78,12 @@ class Font {
             GL_RED,
             GL_UNSIGNED_BYTE,
             face->glyph->bitmap.buffer
-            );
+        );
 
         /* Set texture options */
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         /* Now store character for later use */
@@ -364,7 +364,7 @@ class LogWindow : public Renderable {
       for (uint32_t i = 0; i < messages.size(); i++) {
         font.render(
             messages[i],
-            vec2(position.x + 2, position.y + size.y - i * 12 - 2),
+            vec2(position.x + 2, position.y + size.y - i * 16 - 2),
             vec4(1.0f, 1.0f, 1.0f, 1.0f - (1.0f / messageCount) * i),
             0.75f
         );
@@ -532,7 +532,7 @@ class Player : public OrientedEntity, Renderable {
 
     bool interact() override {
       return false;
-    };
+    }
 
     void render(GraphicsContext context) const override {
       context.model *= translate(vec3(position.x, position.y, 0));
@@ -1015,9 +1015,9 @@ int main() {
     mat4()
   };
 
-  Font font(ft, "res/PxPlus_IBM_VGA8.ttf");
+  Font font(ft, "res/Denjuu-World.ttf");
 
-  LogWindow l(vec2(12, SCREEN_HEIGHT - 12 - 120), vec2(340, 120), 9, font);
+  LogWindow l(vec2(12, SCREEN_HEIGHT - 12 - 144), vec2(396, 144), 9, font);
   Logger::window = &l;
 
   FPSCounter fps;
