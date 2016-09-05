@@ -292,37 +292,37 @@ class LogWindow : public Renderable {
       // +-+---+-+
 
       vertices.insert(vertices.end(), {
-          p.x - 4,          p.y - 4,          0.0f, 0.0f,
+          p.x - 8,          p.y - 8,          0.0f, 0.0f,
           p.x,              p.y,              .25f, .25f,
-          p.x,              p.y - 4,          .25f, 0.0f,
+          p.x,              p.y - 8,          .25f, 0.0f,
 
-          p.x - 4,          p.y - 4,          0.0f, 0.0f,
+          p.x - 8,          p.y - 8,          0.0f, 0.0f,
           p.x,              p.y,              .25f, .25f,
-          p.x - 4,          p.y,              0.0f, .25f,
+          p.x - 8,          p.y,              0.0f, .25f,
 
-          p.x,              p.y - 4,          .25f, 0.0f,
+          p.x,              p.y - 8,          .25f, 0.0f,
           p.x + size.x,     p.y,              .75f, .25f,
-          p.x + size.x,     p.y - 4,          .75f, 0.0f,
+          p.x + size.x,     p.y - 8,          .75f, 0.0f,
 
-          p.x,              p.y - 4,          .25f, 0.0f,
+          p.x,              p.y - 8,          .25f, 0.0f,
           p.x + size.x,     p.y,              .75f, .25f,
           p.x,              p.y,              .25f, .25f,
 
-          p.x + size.x,     p.y - 4,          .75f, 0.0f,
-          p.x + size.x + 4, p.y,              1.0f, .25f,
-          p.x + size.x + 4, p.y - 4,          1.0f, 0.0f,
+          p.x + size.x,     p.y - 8,          .75f, 0.0f,
+          p.x + size.x + 8, p.y,              1.0f, .25f,
+          p.x + size.x + 8, p.y - 8,          1.0f, 0.0f,
 
-          p.x + size.x,     p.y - 4,          .75f, 0.0f,
-          p.x + size.x + 4, p.y,              1.0f, .25f,
+          p.x + size.x,     p.y - 8,          .75f, 0.0f,
+          p.x + size.x + 8, p.y,              1.0f, .25f,
           p.x + size.x,     p.y,              .75f, .25f,
 
-          p.x - 4,          p.y,              0.0f, .25f,
+          p.x - 8,          p.y,              0.0f, .25f,
           p.x,              p.y + size.y,     .25f, .75f,
           p.x,              p.y,              .25f, .25f,
 
-          p.x - 4,          p.y,              0.0f, .25f,
+          p.x - 8,          p.y,              0.0f, .25f,
           p.x,              p.y + size.y,     .25f, .75f,
-          p.x - 4,          p.y + size.y,     0.0f, .75f,
+          p.x - 8,          p.y + size.y,     0.0f, .75f,
 
           p.x,              p.y,              .25f, .25f,
           p.x + size.x,     p.y + size.y,     .75f, .75f,
@@ -333,36 +333,36 @@ class LogWindow : public Renderable {
           p.x,              p.y + size.y,     .25f, .75f,
 
           p.x + size.x,     p.y,              .75f, .25f,
-          p.x + size.x + 4, p.y + size.y,     1.0f, .75f,
-          p.x + size.x + 4, p.y,              1.0f, .25f,
+          p.x + size.x + 8, p.y + size.y,     1.0f, .75f,
+          p.x + size.x + 8, p.y,              1.0f, .25f,
 
           p.x + size.x,     p.y,              .75f, .25f,
-          p.x + size.x + 4, p.y + size.y,     1.0f, .75f,
+          p.x + size.x + 8, p.y + size.y,     1.0f, .75f,
           p.x + size.x,     p.y + size.y,     .75f, .75f,
 
-          p.x - 4,          p.y + size.y,     0.0f, .75f,
-          p.x,              p.y + size.y + 4, .25f, 1.0f,
+          p.x - 8,          p.y + size.y,     0.0f, .75f,
+          p.x,              p.y + size.y + 8, .25f, 1.0f,
           p.x,              p.y + size.y,     .25f, .75f,
 
-          p.x - 4,          p.y + size.y,     0.0f, .75f,
-          p.x,              p.y + size.y + 4, .25f, 1.0f,
-          p.x - 4,          p.y + size.y + 4, 0.0f, 1.0f,
+          p.x - 8,          p.y + size.y,     0.0f, .75f,
+          p.x,              p.y + size.y + 8, .25f, 1.0f,
+          p.x - 8,          p.y + size.y + 8, 0.0f, 1.0f,
 
           p.x,              p.y + size.y,     .25f, .75f,
-          p.x + size.x,     p.y + size.y + 4, .75f, 1.0f,
+          p.x + size.x,     p.y + size.y + 8, .75f, 1.0f,
           p.x + size.x,     p.y + size.y,     .75f, .75f,
 
           p.x,              p.y + size.y,     .25f, .75f,
-          p.x + size.x,     p.y + size.y + 4, .75f, 1.0f,
-          p.x,              p.y + size.y + 4, .25f, 1.0f,
+          p.x + size.x,     p.y + size.y + 8, .75f, 1.0f,
+          p.x,              p.y + size.y + 8, .25f, 1.0f,
 
           p.x + size.x,     p.y + size.y,     .75f, .75f,
-          p.x + size.x + 4, p.y + size.y + 4, 1.0f, 1.0f,
-          p.x + size.x + 4, p.y + size.y,     1.0f, .75f,
+          p.x + size.x + 8, p.y + size.y + 8, 1.0f, 1.0f,
+          p.x + size.x + 8, p.y + size.y,     1.0f, .75f,
 
           p.x + size.x,     p.y + size.y,     .75f, .75f,
-          p.x + size.x + 4, p.y + size.y + 4, 1.0f, 1.0f,
-          p.x + size.x,     p.y + size.y + 4, .75f, 1.0f,
+          p.x + size.x + 8, p.y + size.y + 8, 1.0f, 1.0f,
+          p.x + size.x,     p.y + size.y + 8, .75f, 1.0f,
       });
 
       glBindVertexArray(vao);
