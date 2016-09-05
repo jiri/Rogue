@@ -263,6 +263,7 @@ class LogWindow : public Renderable {
   private:
     vec2 position;
     vec2 size;
+    vec2 border;
 
     std::vector<std::string> messages;
     uint32_t messageCount;
@@ -270,104 +271,63 @@ class LogWindow : public Renderable {
     Font & font;
     Shader shader;
 
+    std::vector<GLuint> elements;
+
   public:
-    LogWindow(const vec2 & p, const vec2 & s, uint32_t mc, Font & f)
+    LogWindow(const vec2 & p, const vec2 & s, uint32_t mc, Font & f, const vec2 & b = vec2(8.0f, 8.0f))
       : Renderable()
       , position(p)
       , size(s)
+      , border(b)
       , messageCount(mc)
       , font(f)
       , shader("res/ui.vert", "res/ui.frag")
     {
       loadTexture("res/gui2.png");
 
-      // +-+---+-+
-      // |0| 1 |2|
-      // +-+---+-+
-      // | |   | |
-      // |3| 4 |5|
-      // | |   | |
-      // +-+---+-+
-      // |6| 7 |8|
-      // +-+---+-+
-
       vertices.insert(vertices.end(), {
-          p.x - 8,          p.y - 8,          0.0f, 0.0f,
-          p.x,              p.y,              .25f, .25f,
-          p.x,              p.y - 8,          .25f, 0.0f,
+          p.x - border.x,           p.y - border.y,           0.0f, 0.0f,
+          p.x,                      p.y - border.y,           .25f, 0.0f,
+          p.x + size.x,             p.y - border.y,           .75f, 0.0f,
+          p.x + size.x + border.x,  p.y - border.y,           1.0f, 0.0f,
 
-          p.x - 8,          p.y - 8,          0.0f, 0.0f,
-          p.x,              p.y,              .25f, .25f,
-          p.x - 8,          p.y,              0.0f, .25f,
+          p.x - border.x,           p.y,                      0.0f, .25f,
+          p.x,                      p.y,                      .25f, .25f,
+          p.x + size.x,             p.y,                      .75f, .25f,
+          p.x + size.x + border.x,  p.y,                      1.0f, .25f,
 
-          p.x,              p.y - 8,          .25f, 0.0f,
-          p.x + size.x,     p.y,              .75f, .25f,
-          p.x + size.x,     p.y - 8,          .75f, 0.0f,
+          p.x - border.x,           p.y + size.y,             0.0f, .75f,
+          p.x,                      p.y + size.y,             .25f, .75f,
+          p.x + size.x,             p.y + size.y,             .75f, .75f,
+          p.x + size.x + border.x,  p.y + size.y,             1.0f, .75f,
 
-          p.x,              p.y - 8,          .25f, 0.0f,
-          p.x + size.x,     p.y,              .75f, .25f,
-          p.x,              p.y,              .25f, .25f,
-
-          p.x + size.x,     p.y - 8,          .75f, 0.0f,
-          p.x + size.x + 8, p.y,              1.0f, .25f,
-          p.x + size.x + 8, p.y - 8,          1.0f, 0.0f,
-
-          p.x + size.x,     p.y - 8,          .75f, 0.0f,
-          p.x + size.x + 8, p.y,              1.0f, .25f,
-          p.x + size.x,     p.y,              .75f, .25f,
-
-          p.x - 8,          p.y,              0.0f, .25f,
-          p.x,              p.y + size.y,     .25f, .75f,
-          p.x,              p.y,              .25f, .25f,
-
-          p.x - 8,          p.y,              0.0f, .25f,
-          p.x,              p.y + size.y,     .25f, .75f,
-          p.x - 8,          p.y + size.y,     0.0f, .75f,
-
-          p.x,              p.y,              .25f, .25f,
-          p.x + size.x,     p.y + size.y,     .75f, .75f,
-          p.x + size.x,     p.y,              .75f, .25f,
-
-          p.x,              p.y,              .25f, .25f,
-          p.x + size.x,     p.y + size.y,     .75f, .75f,
-          p.x,              p.y + size.y,     .25f, .75f,
-
-          p.x + size.x,     p.y,              .75f, .25f,
-          p.x + size.x + 8, p.y + size.y,     1.0f, .75f,
-          p.x + size.x + 8, p.y,              1.0f, .25f,
-
-          p.x + size.x,     p.y,              .75f, .25f,
-          p.x + size.x + 8, p.y + size.y,     1.0f, .75f,
-          p.x + size.x,     p.y + size.y,     .75f, .75f,
-
-          p.x - 8,          p.y + size.y,     0.0f, .75f,
-          p.x,              p.y + size.y + 8, .25f, 1.0f,
-          p.x,              p.y + size.y,     .25f, .75f,
-
-          p.x - 8,          p.y + size.y,     0.0f, .75f,
-          p.x,              p.y + size.y + 8, .25f, 1.0f,
-          p.x - 8,          p.y + size.y + 8, 0.0f, 1.0f,
-
-          p.x,              p.y + size.y,     .25f, .75f,
-          p.x + size.x,     p.y + size.y + 8, .75f, 1.0f,
-          p.x + size.x,     p.y + size.y,     .75f, .75f,
-
-          p.x,              p.y + size.y,     .25f, .75f,
-          p.x + size.x,     p.y + size.y + 8, .75f, 1.0f,
-          p.x,              p.y + size.y + 8, .25f, 1.0f,
-
-          p.x + size.x,     p.y + size.y,     .75f, .75f,
-          p.x + size.x + 8, p.y + size.y + 8, 1.0f, 1.0f,
-          p.x + size.x + 8, p.y + size.y,     1.0f, .75f,
-
-          p.x + size.x,     p.y + size.y,     .75f, .75f,
-          p.x + size.x + 8, p.y + size.y + 8, 1.0f, 1.0f,
-          p.x + size.x,     p.y + size.y + 8, .75f, 1.0f,
+          p.x - border.x,           p.y + size.y + border.y,  0.0f, 1.0f,
+          p.x,                      p.y + size.y + border.y,  .25f, 1.0f,
+          p.x + size.x,             p.y + size.y + border.y,  .75f, 1.0f,
+          p.x + size.x + border.x,  p.y + size.y + border.y,  1.0f, 1.0f,
       });
+
+      for (uint8_t x = 0; x < 3; x++) {
+        for (uint8_t y = 0; y < 3; y++) {
+          elements.push_back(y * 4 + x);
+          elements.push_back((y + 1) * 4 + (x + 1));
+          elements.push_back(y * 4 + (x + 1));
+
+          elements.push_back(y * 4 + x);
+          elements.push_back((y + 1) * 4 + (x + 1));
+          elements.push_back((y + 1) * 4 + x);
+        }
+      }
+
+      GLuint ebo;
+      glGenBuffers(1, &ebo);
 
       glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, elements.size() * sizeof(GLuint), elements.data(), GL_STATIC_DRAW);
 
         /* Position attribute */
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
@@ -387,7 +347,6 @@ class LogWindow : public Renderable {
       shader.use();
 
       shader.setUniform("projection", ortho(0.0f, (float)SCREEN_WIDTH, (float) SCREEN_HEIGHT, 0.0f));
-
       shader.setUniform("texture", texture);
       shader.setUniform("position", position);
       shader.setUniform("size", size);
@@ -395,7 +354,7 @@ class LogWindow : public Renderable {
       glBindVertexArray(vao);
       glBindTexture(GL_TEXTURE_2D, texture);
 
-      glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+      glDrawElements(GL_TRIANGLES, elements.size(), GL_UNSIGNED_INT, 0);
 
       glBindTexture(GL_TEXTURE_2D, 0);
       glBindVertexArray(0);
