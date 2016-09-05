@@ -882,7 +882,11 @@ class Map {
       glBindVertexArray(0);
     }
 
-    void renderEntities(GraphicsContext context) const {
+    void renderEntities(GraphicsContext context) {
+      sort(entities.begin(), entities.end(), [](Entity * a, Entity * b) -> bool {
+        return a->position.y < b->position.y;
+      });
+
       for (auto & e : entities) {
         e->render(context);
       }
