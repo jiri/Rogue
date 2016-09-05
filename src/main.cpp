@@ -373,14 +373,15 @@ LogWindow * Logger::window;
 
 enum Orientation { N = 0, E, S, W };
 
-class Entity {
+class Entity : public Renderable {
   public:
     vec2 position;
 
     bool passable;
 
     Entity(uint32_t x, uint32_t y, bool p)
-      : position(x, y)
+      : Renderable()
+      , position(x, y)
       , passable(p)
     { }
 
@@ -401,11 +402,10 @@ class OrientedEntity : public Entity {
     { }
 };
 
-class Obelisk : public Entity, Renderable {
+class Obelisk : public Entity {
   public:
     Obelisk(uint32_t x, uint32_t y)
       : Entity(x, y, false)
-      , Renderable()
     {
       loadTexture("res/obelisk.png");
       
@@ -454,11 +454,10 @@ class Obelisk : public Entity, Renderable {
     }
 };
 
-class Player : public OrientedEntity, Renderable {
+class Player : public OrientedEntity {
   public:
     Player(uint32_t x, uint32_t y)
       : OrientedEntity(x, y, false)
-      , Renderable()
     {
       /* Create the texture */
       loadTexture("res/player.png");
@@ -533,11 +532,10 @@ class Player : public OrientedEntity, Renderable {
     }
 };
 
-class Chest : public OrientedEntity, Renderable {
+class Chest : public OrientedEntity {
   public:
     Chest(uint32_t x, uint32_t y, Orientation o = N)
       : OrientedEntity(x, y, false, o)
-      , Renderable()
     {
       /* Create the texture */
       loadTexture("res/chest.png");
