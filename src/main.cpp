@@ -1,3 +1,8 @@
+/** FOOD FOR THOUGHT
+  *
+  * - Multiple entities occupying the same space
+  */
+
 #include <cstdio>
 #include <cstdint>
 
