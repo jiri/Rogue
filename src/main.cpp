@@ -404,7 +404,7 @@ class LogWindow : public Renderable {
 
       for (uint32_t i = 0; i < messages.size(); i++) {
         font.render(
-            messages[messages.size() - i - 1],
+            messages[i],
             vec2(position.x + 2, position.y + size.y - i * 12 - 2),
             vec4(1.0f, 1.0f, 1.0f, 1.0f - (1.0f / messageCount) * i),
             0.75f
