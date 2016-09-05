@@ -52,7 +52,7 @@ class Font {
         throw std::runtime_error("Failed to load font '" + path + "'.");
       }
 
-      FT_Set_Pixel_Sizes(face, 0, 16);
+      FT_Set_Pixel_Sizes(face, 0, 8);
 
       /* Generate the charset */
       glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -366,7 +366,7 @@ class LogWindow : public Renderable {
             messages[i],
             vec2(position.x + 2, position.y + size.y - i * 16 - 2),
             vec4(1.0f, 1.0f, 1.0f, 1.0f - (1.0f / messageCount) * i),
-            0.75f
+            1.5f
         );
       }
     }
