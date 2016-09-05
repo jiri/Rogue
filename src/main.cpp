@@ -480,53 +480,28 @@ class Player : public OrientedEntity {
       loadTexture("res/player.png");
       
       /* Create the model */
-      vertices.insert(vertices.end(), {
-          0.0f, -0.5f,  0.0f, 0.0f,
-          0.0f,  1.0f,  0.0f, 1.0f,
-          1.0f,  1.0f,  .25f, 1.0f,
-                 
-          0.0f, -0.5f,  0.0f, 0.0f,
-          1.0f, -0.5f,  .25f, 0.0f,
-          1.0f,  1.0f,  .25f, 1.0f,
-      });
-      vertices.insert(vertices.end(), {
-          0.0f, -0.5f,  .25f, 0.0f,
-          0.0f,  1.0f,  .25f, 1.0f,
-          1.0f,  1.0f,  0.5f, 1.0f,
-                 
-          0.0f, -0.5f,  .25f, 0.0f,
-          1.0f, -0.5f,  0.5f, 0.0f,
-          1.0f,  1.0f,  0.5f, 1.0f,
-      });
-      vertices.insert(vertices.end(), {
-          0.0f, -0.5f,  0.5f, 0.0f,
-          0.0f,  1.0f,  0.5f, 1.0f,
-          1.0f,  1.0f,  .75f, 1.0f,
-                 
-          0.0f, -0.5f,  0.5f, 0.0f,
-          1.0f, -0.5f,  .75f, 0.0f,
-          1.0f,  1.0f,  .75f, 1.0f,
-      });
-      vertices.insert(vertices.end(), {
-          0.0f, -0.5f,  .75f, 0.0f,
-          0.0f,  1.0f,  .75f, 1.0f,
-          1.0f,  1.0f,  1.0f, 1.0f,
-                 
-          0.0f, -0.5f,  .75f, 0.0f,
-          1.0f, -0.5f,  1.0f, 0.0f,
-          1.0f,  1.0f,  1.0f, 1.0f,
-      });
+      for (float f = 0.0f; f < 1.0f; f += 0.25f) {
+        vertices.insert(vertices.end(), {
+            0.0f, -0.5f,  f,        0.0f,
+            0.0f,  1.0f,  f,        1.0f,
+            1.0f,  1.0f,  f + .25f, 1.0f,
+
+            0.0f, -0.5f,  f,        0.0f,
+            1.0f, -0.5f,  f + .25f, 0.0f,
+            1.0f,  1.0f,  f + .25f, 1.0f,
+        });
+      }
 
       /* Generate the VAO */
       glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
 
-        /* Position attribute */
+        /* Position */
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
         glEnableVertexAttribArray(0);
 
-        /* Color attribute */
+        /* Texture coordinates */
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
         glEnableVertexAttribArray(1);
       glBindVertexArray(0);
