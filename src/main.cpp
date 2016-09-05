@@ -6,6 +6,7 @@
 #include <vector>
 #include <queue>
 #include <stdexcept>
+using namespace std;
 
 #define GLEW_STATIC
 #include <GL/glew.h>
@@ -241,28 +242,22 @@ class Renderable {
     }
 };
 
-class LogWindow : public Renderable {
-  private:
+class Window : public Renderable {
+  protected:
+    GLuint ebo;
+    vector<GLuint> elements;
+
     vec2 position;
     vec2 size;
     vec2 border;
 
-    std::vector<std::string> messages;
-    uint32_t messageCount;
-
-    Font & font;
     Shader shader;
 
-    std::vector<GLuint> elements;
-
   public:
-    LogWindow(const vec2 & p, const vec2 & s, uint32_t mc, Font & f, const vec2 & b = vec2(8.0f, 8.0f))
-      : Renderable()
-      , position(p)
+    Window(const vec2 & p, const vec2 & s, const vec2 & b)
+      : position(p)
       , size(s)
       , border(b)
-      , messageCount(mc)
-      , font(f)
       , shader("res/ui.vert", "res/ui.frag")
     {
       loadTexture("res/gui2.png");
@@ -301,7 +296,6 @@ class LogWindow : public Renderable {
         }
       }
 
-      GLuint ebo;
       glGenBuffers(1, &ebo);
 
       glBindVertexArray(vao);
@@ -321,11 +315,11 @@ class LogWindow : public Renderable {
       glBindVertexArray(0);
     }
 
-    void render() {
-      if (messages.size() > messageCount) {
-        messages.resize(messageCount);
-      }
+    virtual ~Window() {
+      glDeleteBuffers(1, &ebo);
+    }
 
+    void render() {
       shader.use();
 
       shader.setUniform("projection", ortho(0.0f, (float)SCREEN_WIDTH, (float) SCREEN_HEIGHT, 0.0f));
@@ -342,6 +336,29 @@ class LogWindow : public Renderable {
       glBindVertexArray(0);
 
       shader.disuse();
+    }
+};
+
+class LogWindow : public Window {
+  private:
+    std::vector<std::string> messages;
+    uint32_t messageCount;
+
+    Font & font;
+
+  public:
+    LogWindow(const vec2 & p, const vec2 & s, uint32_t mc, Font & f, const vec2 & b = vec2(8.0f, 8.0f))
+      : Window(p, s, b)
+      , messageCount(mc)
+      , font(f)
+    { }
+
+    void render() {
+      Window::render();
+
+      if (messages.size() > messageCount) {
+        messages.resize(messageCount);
+      }
 
       for (uint32_t i = 0; i < messages.size(); i++) {
         font.render(
