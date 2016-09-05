@@ -407,16 +407,7 @@ class Obelisk : public Entity, Renderable {
       : Entity(x, y, false)
       , Renderable()
     {
-      glBindTexture(GL_TEXTURE_2D, texture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-        uint8_t *image = SOIL_load_image("res/obelisk.png", &textureWidth, &textureHeight, 0, SOIL_LOAD_RGBA);
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-
-        SOIL_free_image_data(image);
-      glBindTexture(GL_TEXTURE_2D, 0);
+      loadTexture("res/obelisk.png");
       
       /* Create the model */
       vertices.insert(vertices.end(), {
