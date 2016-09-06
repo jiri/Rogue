@@ -562,42 +562,17 @@ class Chest : public OrientedEntity {
       loadTexture("res/chest.png");
 
       /* Create the model */
-      vertices.insert(vertices.end(), {
-          0.0f,  0.0f,  0.0f, 0.0f,
-          0.0f,  1.0f,  0.0f, 1.0f,
-          1.0f,  1.0f,  .25f, 1.0f,
-                 
-          0.0f,  0.0f,  0.0f, 0.0f,
-          1.0f,  0.0f,  .25f, 0.0f,
-          1.0f,  1.0f,  .25f, 1.0f,
-      });
-      vertices.insert(vertices.end(), {
-          0.0f,  0.0f,  .25f, 0.0f,
-          0.0f,  1.0f,  .25f, 1.0f,
-          1.0f,  1.0f,  0.5f, 1.0f,
-                 
-          0.0f,  0.0f,  .25f, 0.0f,
-          1.0f,  0.0f,  0.5f, 0.0f,
-          1.0f,  1.0f,  0.5f, 1.0f,
-      });
-      vertices.insert(vertices.end(), {
-          0.0f,  0.0f,  0.5f, 0.0f,
-          0.0f,  1.0f,  0.5f, 1.0f,
-          1.0f,  1.0f,  .75f, 1.0f,
-                 
-          0.0f,  0.0f,  0.5f, 0.0f,
-          1.0f,  0.0f,  .75f, 0.0f,
-          1.0f,  1.0f,  .75f, 1.0f,
-      });
-      vertices.insert(vertices.end(), {
-          0.0f,  0.0f,  .75f, 0.0f,
-          0.0f,  1.0f,  .75f, 1.0f,
-          1.0f,  1.0f,  1.0f, 1.0f,
-                 
-          0.0f,  0.0f,  .75f, 0.0f,
-          1.0f,  0.0f,  1.0f, 0.0f,
-          1.0f,  1.0f,  1.0f, 1.0f,
-      });
+      for (float f = 0.0f; f < 1.0f; f += 0.25f) {
+        vertices.insert(vertices.end(), {
+            0.0f,  0.0f,  f,        0.0f,
+            0.0f,  1.0f,  f,        1.0f,
+            1.0f,  1.0f,  f + .25f, 1.0f,
+
+            0.0f,  0.0f,  f,        0.0f,
+            1.0f,  0.0f,  f + .25f, 0.0f,
+            1.0f,  1.0f,  f + .25f, 1.0f,
+        });
+      }
 
       /* Generate the VAO */
       glBindVertexArray(vao);
