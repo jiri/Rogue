@@ -1,6 +1,7 @@
 /** FOOD FOR THOUGHT
   *
   * - Multiple entities occupying the same space
+  * - Rewrite using composition over inheritance
   */
 
 #include <cstdio>
