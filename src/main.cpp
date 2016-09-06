@@ -515,15 +515,15 @@ class Item : public Entity {
       loadTexture("res/items.png");
 
       /* Create the model */
-      vertices.insert(vertices.end(), {
-          0.0f,  0.0f,  0.0f,  0.0f,
-          0.0f,  1.0f,  0.0f,  0.1f,
-          1.0f,  1.0f,  .125f, 0.1f,
+      appearance.vertices = {
+          .125f,  .125f,  0.0f,  0.0f,
+          .125f,  .875f,  0.0f,  0.1f,
+          .875f,  .875f,  .125f, 0.1f,
 
-          0.0f,  0.0f,  0.0f,  0.0f,
-          1.0f,  0.0f,  .125f, 0.0f,
-          1.0f,  1.0f,  .125f, 0.1f,
-      });
+          .125f,  .125f,  0.0f,  0.0f,
+          .875f,  .125f,  .125f, 0.0f,
+          .875f,  .875f,  .125f, 0.1f,
+      };
 
       /* Generate the VAO */
       glBindVertexArray(vao);
