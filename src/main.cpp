@@ -248,10 +248,47 @@ class Renderable {
     }
 };
 
-class Window : public Renderable {
-  protected:
-    GLuint ebo;
+class Appearance {
+  public:
+    GLuint texture;
+
+    GLuint vao, vbo, ebo;
+    vector<GLfloat> vertices;
     vector<GLuint> elements;
+
+  public:
+    Appearance() {
+      glGenTextures(1, &texture);
+      glGenVertexArrays(1, &vao);
+      glGenBuffers(1, &vbo);
+      glGenBuffers(1, &ebo);
+    }
+
+    virtual ~Appearance() {
+      glDeleteTextures(1, &texture);
+      glDeleteVertexArrays(1, &vao);
+      glDeleteBuffers(1, &vbo);
+      glDeleteBuffers(1, &ebo);
+    }
+
+    void loadTexture(const string & path) {
+      glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        int width, height;
+        uint8_t *image = SOIL_load_image(path.c_str(), &width, &height, 0, SOIL_LOAD_RGBA);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+        SOIL_free_image_data(image);
+      glBindTexture(GL_TEXTURE_2D, 0);
+    }
+};
+
+class Window {
+  protected:
+    Appearance appearance;
 
     vec2 position;
     vec2 size;
@@ -266,9 +303,9 @@ class Window : public Renderable {
       , border(b)
       , shader("res/ui.vert", "res/ui.frag")
     {
-      loadTexture("res/gui2.png");
+      appearance.loadTexture("res/gui2.png");
 
-      vertices.insert(vertices.end(), {
+      appearance.vertices = {
           p.x - border.x,           p.y - border.y,           0.0f, 0.0f,
           p.x,                      p.y - border.y,           .25f, 0.0f,
           p.x + size.x,             p.y - border.y,           .75f, 0.0f,
@@ -288,28 +325,28 @@ class Window : public Renderable {
           p.x,                      p.y + size.y + border.y,  .25f, 1.0f,
           p.x + size.x,             p.y + size.y + border.y,  .75f, 1.0f,
           p.x + size.x + border.x,  p.y + size.y + border.y,  1.0f, 1.0f,
-      });
+      };
 
-      for (uint8_t x = 0; x < 3; x++) {
-        for (uint8_t y = 0; y < 3; y++) {
-          elements.push_back(y * 4 + x);
-          elements.push_back((y + 1) * 4 + (x + 1));
-          elements.push_back(y * 4 + (x + 1));
+      for (uint32_t x = 0; x < 3; x++) {
+        for (uint32_t y = 0; y < 3; y++) {
+          appearance.elements.insert(appearance.elements.end(), {
+              (y + 0) * 4 + (x + 0),
+              (y + 1) * 4 + (x + 1),
+              (y + 0) * 4 + (x + 1),
 
-          elements.push_back(y * 4 + x);
-          elements.push_back((y + 1) * 4 + (x + 1));
-          elements.push_back((y + 1) * 4 + x);
+              (y + 0) * 4 + (x + 0),
+              (y + 1) * 4 + (x + 1),
+              (y + 1) * 4 + (x + 0),
+          });
         }
       }
 
-      glGenBuffers(1, &ebo);
+      glBindVertexArray(appearance.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, appearance.vbo);
+        glBufferData(GL_ARRAY_BUFFER, appearance.vertices.size() * sizeof(GLfloat), appearance.vertices.data(), GL_STATIC_DRAW);
 
-      glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, elements.size() * sizeof(GLuint), elements.data(), GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, appearance.ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, appearance.elements.size() * sizeof(GLuint), appearance.elements.data(), GL_STATIC_DRAW);
 
         /* Position attribute */
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
@@ -321,22 +358,17 @@ class Window : public Renderable {
       glBindVertexArray(0);
     }
 
-    virtual ~Window() {
-      glDeleteBuffers(1, &ebo);
-    }
-
     void render() {
       shader.use();
 
       shader.setUniform("projection", ortho(0.0f, (float)SCREEN_WIDTH, (float) SCREEN_HEIGHT, 0.0f));
-      shader.setUniform("texture", texture);
       shader.setUniform("position", position);
       shader.setUniform("size", size);
 
-      glBindVertexArray(vao);
-      glBindTexture(GL_TEXTURE_2D, texture);
+      glBindVertexArray(appearance.vao);
+      glBindTexture(GL_TEXTURE_2D, appearance.texture);
 
-      glDrawElements(GL_TRIANGLES, elements.size(), GL_UNSIGNED_INT, 0);
+      glDrawElements(GL_TRIANGLES, appearance.elements.size(), GL_UNSIGNED_INT, 0);
 
       glBindTexture(GL_TEXTURE_2D, 0);
       glBindVertexArray(0);
@@ -397,42 +429,6 @@ LogWindow * Logger::window;
 enum Orientation { N = 0, E, S, W };
 
 class Inventory;
-
-class Appearance {
-  public:
-    GLuint texture;
-
-    GLuint vao, vbo, ebo;
-    vector<GLfloat> vertices;
-    vector<GLuint> elements;
-
-  public:
-    Appearance() {
-      glGenTextures(1, &texture);
-      glGenVertexArrays(1, &vao);
-      glGenBuffers(1, &vbo);
-    }
-
-    virtual ~Appearance() {
-      glDeleteTextures(1, &texture);
-      glDeleteVertexArrays(1, &vao);
-      glDeleteBuffers(1, &vbo);
-    }
-
-    void loadTexture(const string & path) {
-      glBindTexture(GL_TEXTURE_2D, texture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-        int width, height;
-        uint8_t *image = SOIL_load_image(path.c_str(), &width, &height, 0, SOIL_LOAD_RGBA);
-
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-
-        SOIL_free_image_data(image);
-      glBindTexture(GL_TEXTURE_2D, 0);
-    }
-};
 
 class Entity {
   public:
