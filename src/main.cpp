@@ -395,8 +395,12 @@ LogWindow * Logger::window;
 
 enum Orientation { N = 0, E, S, W };
 
+class Inventory;
+
 class Entity : public Renderable {
   public:
+    Inventory * inventory;
+
     vec2 position;
 
     bool passable;
@@ -498,11 +502,137 @@ class Obelisk : public Entity {
     }
 };
 
+class Item : public Entity {
+  public:
+    string name;
+
+    Item(uint32_t x, uint32_t y, string n)
+      : Entity(x, y, true)
+      , name(n)
+    {
+      /* Create the texture */
+      loadTexture("res/items.png");
+
+      /* Create the model */
+      vertices.insert(vertices.end(), {
+          0.0f,  0.0f,  0.0f,  0.0f,
+          0.0f,  1.0f,  0.0f,  0.1f,
+          1.0f,  1.0f,  .125f, 0.1f,
+
+          0.0f,  0.0f,  0.0f,  0.0f,
+          1.0f,  0.0f,  .125f, 0.0f,
+          1.0f,  1.0f,  .125f, 0.1f,
+      });
+
+      /* Generate the VAO */
+      glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+
+        /* Position */
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+        glEnableVertexAttribArray(0);
+
+        /* Texture coordinates */
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+        glEnableVertexAttribArray(1);
+      glBindVertexArray(0);
+    }
+
+    void interact(Entity & e) override {
+    }
+
+    void render(GraphicsContext context) const override {
+      context.model *= translate(vec3(position.x, position.y, 0));
+      context.updateContext();
+
+      glBindVertexArray(vao);
+      glBindTexture(GL_TEXTURE_2D, texture);
+
+      glDrawArrays(GL_TRIANGLES, 0, 6);
+
+      glBindTexture(GL_TEXTURE_2D, 0);
+      glBindVertexArray(0);
+    }
+};
+
+class Inventory {
+  public:
+    vector<Item> items;
+
+    void addItem(Item i) {
+      items.push_back(i);
+    }
+
+    void log() const {
+      Logger::log("You have:");
+      for (auto & i : items) {
+        Logger::log("a " + i.name);
+      }
+    }
+};
+
+class Chest : public OrientedEntity {
+  public:
+    Chest(uint32_t x, uint32_t y, Orientation o = N)
+      : OrientedEntity(x, y, false, o)
+    {
+      /* Create the texture */
+      loadTexture("res/chest.png");
+
+      /* Create the model */
+      for (float f = 0.0f; f < 1.0f; f += 0.25f) {
+        vertices.insert(vertices.end(), {
+            0.0f,  0.0f,  f,        0.0f,
+            0.0f,  1.0f,  f,        1.0f,
+            1.0f,  1.0f,  f + .25f, 1.0f,
+
+            0.0f,  0.0f,  f,        0.0f,
+            1.0f,  0.0f,  f + .25f, 0.0f,
+            1.0f,  1.0f,  f + .25f, 1.0f,
+        });
+      }
+
+      /* Generate the VAO */
+      glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+
+        /* Position attribute */
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+        glEnableVertexAttribArray(0);
+
+        /* Color attribute */
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+        glEnableVertexAttribArray(1);
+      glBindVertexArray(0);
+    }
+
+    void interact(Entity & other) override {
+      other.inventory->addItem({ 0, 0, "sword"});
+    }
+
+    void render(GraphicsContext context) const override {
+      context.model *= translate(vec3(position.x, position.y, 0));
+      context.updateContext();
+
+      glBindVertexArray(vao);      
+      glBindTexture(GL_TEXTURE_2D, texture);
+
+      glDrawArrays(GL_TRIANGLES, orientation * 6, 6);
+
+      glBindTexture(GL_TEXTURE_2D, 0);
+      glBindVertexArray(0);
+    }
+};
+
 class Player : public OrientedEntity {
   public:
     Player(uint32_t x, uint32_t y)
       : OrientedEntity(x, y, false)
     {
+      inventory = new Inventory;
+
       /* Create the texture */
       loadTexture("res/player.png");
       
@@ -547,113 +677,6 @@ class Player : public OrientedEntity {
       glBindTexture(GL_TEXTURE_2D, texture);
 
       glDrawArrays(GL_TRIANGLES, orientation * 6, 6);
-
-      glBindTexture(GL_TEXTURE_2D, 0);
-      glBindVertexArray(0);
-    }
-};
-
-class Chest : public OrientedEntity {
-  public:
-    Chest(uint32_t x, uint32_t y, Orientation o = N)
-      : OrientedEntity(x, y, false, o)
-    {
-      /* Create the texture */
-      loadTexture("res/chest.png");
-
-      /* Create the model */
-      for (float f = 0.0f; f < 1.0f; f += 0.25f) {
-        vertices.insert(vertices.end(), {
-            0.0f,  0.0f,  f,        0.0f,
-            0.0f,  1.0f,  f,        1.0f,
-            1.0f,  1.0f,  f + .25f, 1.0f,
-
-            0.0f,  0.0f,  f,        0.0f,
-            1.0f,  0.0f,  f + .25f, 0.0f,
-            1.0f,  1.0f,  f + .25f, 1.0f,
-        });
-      }
-
-      /* Generate the VAO */
-      glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
-
-        /* Position attribute */
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
-        glEnableVertexAttribArray(0);
-
-        /* Color attribute */
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
-        glEnableVertexAttribArray(1);
-      glBindVertexArray(0);
-    }
-
-    void interact(Entity & other) override {
-      Logger::log("TODO: Give stuff to player");
-    }
-
-    void render(GraphicsContext context) const override {
-      context.model *= translate(vec3(position.x, position.y, 0));
-      context.updateContext();
-
-      glBindVertexArray(vao);      
-      glBindTexture(GL_TEXTURE_2D, texture);
-
-      glDrawArrays(GL_TRIANGLES, orientation * 6, 6);
-
-      glBindTexture(GL_TEXTURE_2D, 0);
-      glBindVertexArray(0);
-    }
-};
-
-class Item : public Entity {
-  public:
-    string name;
-
-    Item(uint32_t x, uint32_t y)
-      : Entity(x, y, true)
-    {
-      /* Create the texture */
-      loadTexture("res/items.png");
-
-      /* Create the model */
-      vertices.insert(vertices.end(), {
-          0.0f,  0.0f,  0.0f,  0.0f,
-          0.0f,  1.0f,  0.0f,  0.1f,
-          1.0f,  1.0f,  .125f, 0.1f,
-
-          0.0f,  0.0f,  0.0f,  0.0f,
-          1.0f,  0.0f,  .125f, 0.0f,
-          1.0f,  1.0f,  .125f, 0.1f,
-      });
-
-      /* Generate the VAO */
-      glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
-
-        /* Position */
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
-        glEnableVertexAttribArray(0);
-
-        /* Texture coordinates */
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
-        glEnableVertexAttribArray(1);
-      glBindVertexArray(0);
-    }
-
-    void interact(Entity & e) override {
-    }
-
-    void render(GraphicsContext context) const override {
-      context.model *= translate(vec3(position.x, position.y, 0));
-      context.updateContext();
-
-      glBindVertexArray(vao);
-      glBindTexture(GL_TEXTURE_2D, texture);
-
-      glDrawArrays(GL_TRIANGLES, 0, 6);
 
       glBindTexture(GL_TEXTURE_2D, 0);
       glBindVertexArray(0);
@@ -748,7 +771,7 @@ class Map {
       entities.push_back(new Obelisk { 5, 5 });
       entities.push_back(new Chest { 7, 7, S});
       entities.push_back(new Player { 5, 9 });
-      entities.push_back(new Item { 2, 2 });
+      entities.push_back(new Item { 2, 2, "sword" });
 
       /* Generate the model */
       auto fw = static_cast<float>(w);
@@ -1024,7 +1047,6 @@ class PlayerController {
         entity.orientation = W;
         delta.x = -1;
       }
-      
 
       if (key == GLFW_KEY_SPACE) {
         switch (entity.orientation) {
@@ -1041,6 +1063,10 @@ class PlayerController {
         }
 
         return true;
+      }
+
+      if (key == GLFW_KEY_TAB) {
+        entity.inventory->log();
       }
 
       if (map.passable(entity.position + delta)) {
