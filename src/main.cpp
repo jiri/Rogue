@@ -211,43 +211,6 @@ class GraphicsContext {
     }
 };
 
-class Renderable {
-  protected:
-    GLuint texture;
-    int textureWidth, textureHeight;
-
-    GLuint vao, vbo;
-    std::vector<GLfloat> vertices;
-
-  public:
-    Renderable() {
-      glGenTextures(1, &texture);
-      glGenVertexArrays(1, &vao);
-      glGenBuffers(1, &vbo);
-    }
-
-    virtual ~Renderable() {
-      glDeleteTextures(1, &texture);
-      glDeleteVertexArrays(1, &vao);
-      glDeleteBuffers(1, &vbo);
-    }
-
-    void loadTexture(std::string path) {
-      glBindTexture(GL_TEXTURE_2D, texture);
-
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-      uint8_t *image = SOIL_load_image(path.c_str(), &textureWidth, &textureHeight, 0, SOIL_LOAD_RGBA);
-
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-
-      SOIL_free_image_data(image);
-
-      glBindTexture(GL_TEXTURE_2D, 0);
-    }
-};
-
 class Appearance {
   public:
     GLuint texture;
