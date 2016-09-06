@@ -398,17 +398,53 @@ enum Orientation { N = 0, E, S, W };
 
 class Inventory;
 
-class Entity : public Renderable {
+class Appearance {
+  public:
+    GLuint texture;
+
+    GLuint vao, vbo, ebo;
+    vector<GLfloat> vertices;
+    vector<GLuint> elements;
+
+  public:
+    Appearance() {
+      glGenTextures(1, &texture);
+      glGenVertexArrays(1, &vao);
+      glGenBuffers(1, &vbo);
+    }
+
+    virtual ~Appearance() {
+      glDeleteTextures(1, &texture);
+      glDeleteVertexArrays(1, &vao);
+      glDeleteBuffers(1, &vbo);
+    }
+
+    void loadTexture(const string & path) {
+      glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        int width, height;
+        uint8_t *image = SOIL_load_image(path.c_str(), &width, &height, 0, SOIL_LOAD_RGBA);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+        SOIL_free_image_data(image);
+      glBindTexture(GL_TEXTURE_2D, 0);
+    }
+};
+
+class Entity {
   public:
     Inventory * inventory;
+    Appearance appearance;
 
     vec2 position;
 
     bool passable;
 
     Entity(uint32_t x, uint32_t y, bool p)
-      : Renderable()
-      , position(x, y)
+      : position(x, y)
       , passable(p)
     { }
 
@@ -456,10 +492,10 @@ class Obelisk : public Entity {
     Obelisk(uint32_t x, uint32_t y)
       : Entity(x, y, false)
     {
-      loadTexture("res/obelisk.png");
+      appearance.loadTexture("res/obelisk.png");
       
       /* Create the model */
-      vertices.insert(vertices.end(), {
+      appearance.vertices = {
           0.0f, -0.5f,  0.0f, 0.0f,
           0.0f,  1.0f,  0.0f, 1.0f,
           1.0f,  1.0f,  1.0f, 1.0f,
@@ -467,12 +503,12 @@ class Obelisk : public Entity {
           0.0f, -0.5f,  0.0f, 0.0f,
           1.0f, -0.5f,  1.0f, 0.0f,
           1.0f,  1.0f,  1.0f, 1.0f,
-      });
+      };
 
       /* Generate the VAO */
-      glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+      glBindVertexArray(appearance.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, appearance.vbo);
+        glBufferData(GL_ARRAY_BUFFER, appearance.vertices.size() * sizeof(GLfloat), appearance.vertices.data(), GL_STATIC_DRAW);
 
         /* Position attribute */
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
@@ -493,10 +529,10 @@ class Obelisk : public Entity {
       context.model *= translate(vec3(position.x, position.y, 0));
       context.updateContext();
 
-      glBindVertexArray(vao);      
-      glBindTexture(GL_TEXTURE_2D, texture);
+      glBindVertexArray(appearance.vao);
+      glBindTexture(GL_TEXTURE_2D, appearance.texture);
 
-      glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+      glDrawArrays(GL_TRIANGLES, 0, appearance.vertices.size());
 
       glBindTexture(GL_TEXTURE_2D, 0);
       glBindVertexArray(0);
@@ -512,7 +548,7 @@ class Item : public Entity {
       , name(n)
     {
       /* Create the texture */
-      loadTexture("res/items.png");
+      appearance.loadTexture("res/items.png");
 
       /* Create the model */
       appearance.vertices = {
@@ -526,9 +562,9 @@ class Item : public Entity {
       };
 
       /* Generate the VAO */
-      glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+      glBindVertexArray(appearance.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, appearance.vbo);
+        glBufferData(GL_ARRAY_BUFFER, appearance.vertices.size() * sizeof(GLfloat), appearance.vertices.data(), GL_STATIC_DRAW);
 
         /* Position */
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
@@ -547,8 +583,8 @@ class Item : public Entity {
       context.model *= translate(vec3(position.x, position.y, 0));
       context.updateContext();
 
-      glBindVertexArray(vao);
-      glBindTexture(GL_TEXTURE_2D, texture);
+      glBindVertexArray(appearance.vao);
+      glBindTexture(GL_TEXTURE_2D, appearance.texture);
 
       glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -579,11 +615,11 @@ class Chest : public OrientedEntity {
       : OrientedEntity(x, y, false, o)
     {
       /* Create the texture */
-      loadTexture("res/chest.png");
+      appearance.loadTexture("res/chest.png");
 
       /* Create the model */
       for (float f = 0.0f; f < 1.0f; f += 0.25f) {
-        vertices.insert(vertices.end(), {
+        appearance.vertices.insert(appearance.vertices.end(), {
             0.0f,  0.0f,  f,        0.0f,
             0.0f,  1.0f,  f,        1.0f,
             1.0f,  1.0f,  f + .25f, 1.0f,
@@ -595,9 +631,9 @@ class Chest : public OrientedEntity {
       }
 
       /* Generate the VAO */
-      glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+      glBindVertexArray(appearance.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, appearance.vbo);
+        glBufferData(GL_ARRAY_BUFFER, appearance.vertices.size() * sizeof(GLfloat), appearance.vertices.data(), GL_STATIC_DRAW);
 
         /* Position attribute */
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
@@ -617,8 +653,8 @@ class Chest : public OrientedEntity {
       context.model *= translate(vec3(position.x, position.y, 0));
       context.updateContext();
 
-      glBindVertexArray(vao);      
-      glBindTexture(GL_TEXTURE_2D, texture);
+      glBindVertexArray(appearance.vao);
+      glBindTexture(GL_TEXTURE_2D, appearance.texture);
 
       glDrawArrays(GL_TRIANGLES, orientation * 6, 6);
 
@@ -635,11 +671,11 @@ class Player : public OrientedEntity {
       inventory = new Inventory;
 
       /* Create the texture */
-      loadTexture("res/player.png");
+      appearance.loadTexture("res/player.png");
       
       /* Create the model */
       for (float f = 0.0f; f < 1.0f; f += 0.25f) {
-        vertices.insert(vertices.end(), {
+        appearance.vertices.insert(appearance.vertices.end(), {
             0.0f, -0.5f,  f,        0.0f,
             0.0f,  1.0f,  f,        1.0f,
             1.0f,  1.0f,  f + .25f, 1.0f,
@@ -651,9 +687,9 @@ class Player : public OrientedEntity {
       }
 
       /* Generate the VAO */
-      glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+      glBindVertexArray(appearance.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, appearance.vbo);
+        glBufferData(GL_ARRAY_BUFFER, appearance.vertices.size() * sizeof(GLfloat), appearance.vertices.data(), GL_STATIC_DRAW);
 
         /* Position */
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
@@ -674,8 +710,8 @@ class Player : public OrientedEntity {
       context.model *= translate(vec3(position.x, position.y, 0));
       context.updateContext();
 
-      glBindVertexArray(vao);
-      glBindTexture(GL_TEXTURE_2D, texture);
+      glBindVertexArray(appearance.vao);
+      glBindTexture(GL_TEXTURE_2D, appearance.texture);
 
       glDrawArrays(GL_TRIANGLES, orientation * 6, 6);
 
