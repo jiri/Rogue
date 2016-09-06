@@ -1054,13 +1054,13 @@ class FPSCounter {
     }
 };
 
-class PlayerController {
+class OrientedEntityController {
   private:
-    Player &entity;
+    OrientedEntity &entity;
     Map &map;
 
   public:
-    PlayerController(Player &e, Map &m)
+    OrientedEntityController(OrientedEntity &e, Map &m)
       : entity(e)
       , map(m)
     { }
@@ -1177,7 +1177,7 @@ int main() {
   Map m(20, 20, t);
 
   Player player { 1, 2 };
-  PlayerController pc { player, m };
+  OrientedEntityController pc { player, m };
 
   m.addEntity(&player);
 
