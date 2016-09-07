@@ -249,7 +249,7 @@ enum Orientation { N = 0, E, S, W };
 
 class Inventory;
 
-class Entity {
+class Actor {
   public:
     Inventory * inventory;
     Appearance appearance;
@@ -258,28 +258,28 @@ class Entity {
 
     bool passable;
 
-    Entity(uint32_t x, uint32_t y, bool p)
+    Actor(uint32_t x, uint32_t y, bool p)
       : position(x, y)
       , passable(p)
     { }
 
-    virtual ~Entity() { }
+    virtual ~Actor() { }
 
-    virtual void interact(Entity & other) = 0;
+    virtual void interact(Actor & other) = 0;
 
     virtual void render(GraphicsContext context) const = 0;
 };
 
-class OrientedEntity : public Entity {
+class OrientedActor : public Actor {
   public:
     Orientation orientation;
 
-    OrientedEntity(uint32_t x, uint32_t y, bool p, Orientation o = N)
-      : Entity(x, y, p)
+    OrientedActor(uint32_t x, uint32_t y, bool p, Orientation o = N)
+      : Actor(x, y, p)
       , orientation(o)
     { }
 
-    void turnTo(const Entity & e) {
+    void turnTo(const Actor & e) {
       if (e.position.x < position.x) {
         orientation = W;
         return;
@@ -302,10 +302,10 @@ class OrientedEntity : public Entity {
     }
 };
 
-class Obelisk : public Entity {
+class Obelisk : public Actor {
   public:
     Obelisk(uint32_t x, uint32_t y)
-      : Entity(x, y, false)
+      : Actor(x, y, false)
     {
       appearance.loadTexture("res/obelisk.png");
       
@@ -335,7 +335,7 @@ class Obelisk : public Entity {
       glBindVertexArray(0);
     }
 
-    void interact(Entity &) override {
+    void interact(Actor &) override {
       Logger::log("Stuff is inscribed in the stone in an ancient script.");
       Logger::log("You can't read it for shit.");
     }
@@ -356,20 +356,20 @@ class Obelisk : public Entity {
 
 class Item;
 
-class GroundEntity : public Entity {
+class GroundActor : public Actor {
   private:
     Item * item;
 
   public:
-    GroundEntity(Item * i, uint32_t x, uint32_t y, string path)
-      : Entity(x, y, true)
+    GroundActor(Item * i, uint32_t x, uint32_t y, string path)
+      : Actor(x, y, true)
       , item(i)
     {
       /* Create the texture */
       appearance.loadTexture(path);
     }
 
-    void interact(Entity & e) override {
+    void interact(Actor & e) override {
     }
 
     void render(GraphicsContext context) const override {
@@ -390,14 +390,14 @@ class Item {
   public:
     string name;
 
-    GroundEntity * groundEntity;
+    GroundActor * groundActor;
 
     Item(uint32_t x, uint32_t y, string n)
-      : groundEntity { new GroundEntity(this, x, y, "res/items.png") }
+      : groundActor { new GroundActor(this, x, y, "res/items.png") }
       , name(n)
     {
       /* Create the model */
-      groundEntity->appearance.vertices = {
+      groundActor->appearance.vertices = {
           .125f,  .125f,  0.0f,  0.0f,
           .125f,  .875f,  0.0f,  0.1f,
           .875f,  .875f,  .125f, 0.1f,
@@ -408,9 +408,9 @@ class Item {
       };
 
       /* Generate the VAO */
-      glBindVertexArray(groundEntity->appearance.vao);
-        glBindBuffer(GL_ARRAY_BUFFER, groundEntity->appearance.vbo);
-        glBufferData(GL_ARRAY_BUFFER, groundEntity->appearance.vertices.size() * sizeof(GLfloat), groundEntity->appearance.vertices.data(), GL_STATIC_DRAW);
+      glBindVertexArray(groundActor->appearance.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, groundActor->appearance.vbo);
+        glBufferData(GL_ARRAY_BUFFER, groundActor->appearance.vertices.size() * sizeof(GLfloat), groundActor->appearance.vertices.data(), GL_STATIC_DRAW);
 
         /* Position */
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
@@ -439,10 +439,10 @@ class Inventory {
     }
 };
 
-class Chest : public OrientedEntity {
+class Chest : public OrientedActor {
   public:
     Chest(uint32_t x, uint32_t y, Orientation o = N)
-      : OrientedEntity(x, y, false, o)
+      : OrientedActor(x, y, false, o)
     {
       /* Create the texture */
       appearance.loadTexture("res/chest.png");
@@ -475,7 +475,7 @@ class Chest : public OrientedEntity {
       glBindVertexArray(0);
     }
 
-    void interact(Entity & other) override {
+    void interact(Actor & other) override {
       other.inventory->addItem({ 0, 0, "sword"});
     }
 
@@ -493,10 +493,10 @@ class Chest : public OrientedEntity {
     }
 };
 
-class Player : public OrientedEntity {
+class Player : public OrientedActor {
   public:
     Player(uint32_t x, uint32_t y)
-      : OrientedEntity(x, y, false)
+      : OrientedActor(x, y, false)
     {
       inventory = new Inventory;
 
@@ -531,7 +531,7 @@ class Player : public OrientedEntity {
       glBindVertexArray(0);
     }
 
-    void interact(Entity & e) override {
+    void interact(Actor & e) override {
       turnTo(e);
       Logger::log("Hello there!");
     }
@@ -603,7 +603,7 @@ class Map {
     const TileSet & tileSet;
 
     Tile *map;
-    std::vector<Entity *> entities;
+    std::vector<Actor *> entities;
 
     uint32_t width;
     uint32_t height;
@@ -640,7 +640,7 @@ class Map {
       entities.push_back(new Player { 5, 9 });
 
       auto i = new Item { 2, 2, "sword" };
-      entities.push_back(i->groundEntity);
+      entities.push_back(i->groundActor);
 
       /* Generate the model */
       auto fw = static_cast<float>(w);
@@ -809,7 +809,7 @@ class Map {
     }
 
     void renderEntities(GraphicsContext context) {
-      sort(entities.begin(), entities.end(), [](Entity * a, Entity * b) -> bool {
+      sort(entities.begin(), entities.end(), [](Actor * a, Actor * b) -> bool {
         return a->position.y < b->position.y;
       });
 
@@ -818,7 +818,7 @@ class Map {
       }
     }
 
-    void addEntity(Entity * e) {
+    void addActor(Actor * e) {
       entities.push_back(e);
     }
 
@@ -836,7 +836,7 @@ class Map {
       return false;
     }
 
-    Entity * getEntity(vec2 pos) {
+    Actor * getActor(vec2 pos) {
       for (auto e : entities) {
         if (e->position == pos) {
           return e;
@@ -850,10 +850,10 @@ class Map {
 class Camera {
   private:
     vec2 position;
-    const Entity &target;
+    const Actor &target;
 
   public:
-    Camera(const Entity & e)
+    Camera(const Actor & e)
       : position(e.position)
       , target(e)
     { }
@@ -886,14 +886,14 @@ class FPSCounter {
     }
 };
 
-class OrientedEntityController {
+class OrientedActorController {
   private:
-    OrientedEntity &entity;
+    OrientedActor &actor;
     Map &map;
 
   public:
-    OrientedEntityController(OrientedEntity &e, Map &m)
-      : entity(e)
+    OrientedActorController(OrientedActor &e, Map &m)
+      : actor(e)
       , map(m)
     { }
 
@@ -901,45 +901,45 @@ class OrientedEntityController {
       vec2 delta;
 
       if (key == GLFW_KEY_UP) {
-        entity.orientation = N;
+        actor.orientation = N;
         delta.y = -1;
       }
       if (key == GLFW_KEY_RIGHT) {
-        entity.orientation = E;
+        actor.orientation = E;
         delta.x = 1;
       }
       if (key == GLFW_KEY_DOWN) {
-        entity.orientation = S;
+        actor.orientation = S;
         delta.y = 1;
       }
       if (key == GLFW_KEY_LEFT) {
-        entity.orientation = W;
+        actor.orientation = W;
         delta.x = -1;
       }
 
       if (key == GLFW_KEY_SPACE) {
-        switch (entity.orientation) {
+        switch (actor.orientation) {
           case N: delta.y = -1; break;
           case E: delta.x =  1; break;
           case S: delta.y =  1; break;
           case W: delta.x = -1; break;
         }
 
-        auto e = map.getEntity(entity.position + delta);
+        auto e = map.getActor(actor.position + delta);
 
         if (e != nullptr) {
-          e->interact(entity);
+          e->interact(actor);
         }
 
         return true;
       }
 
       if (key == GLFW_KEY_TAB) {
-        entity.inventory->log();
+        actor.inventory->log();
       }
 
-      if (map.passable(entity.position + delta)) {
-        entity.position += delta;
+      if (map.passable(actor.position + delta)) {
+        actor.position += delta;
       }
       
       return true;
@@ -1009,9 +1009,9 @@ int main() {
   Map m(20, 20, t);
 
   Player player { 1, 2 };
-  OrientedEntityController pc { player, m };
+  OrientedActorController pc { player, m };
 
-  m.addEntity(&player);
+  m.addActor(&player);
 
   Camera c { player };
 
