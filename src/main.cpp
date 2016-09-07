@@ -498,41 +498,19 @@ class Obelisk : public Entity {
     }
 };
 
-class Item : public Entity {
-  public:
-    string name;
+class Item;
 
-    Item(uint32_t x, uint32_t y, string n)
+class GroundEntity : public Entity {
+  private:
+    Item * item;
+
+  public:
+    GroundEntity(Item * i, uint32_t x, uint32_t y, string path)
       : Entity(x, y, true)
-      , name(n)
+      , item(i)
     {
       /* Create the texture */
-      appearance.loadTexture("res/items.png");
-
-      /* Create the model */
-      appearance.vertices = {
-          .125f,  .125f,  0.0f,  0.0f,
-          .125f,  .875f,  0.0f,  0.1f,
-          .875f,  .875f,  .125f, 0.1f,
-
-          .125f,  .125f,  0.0f,  0.0f,
-          .875f,  .125f,  .125f, 0.0f,
-          .875f,  .875f,  .125f, 0.1f,
-      };
-
-      /* Generate the VAO */
-      glBindVertexArray(appearance.vao);
-        glBindBuffer(GL_ARRAY_BUFFER, appearance.vbo);
-        glBufferData(GL_ARRAY_BUFFER, appearance.vertices.size() * sizeof(GLfloat), appearance.vertices.data(), GL_STATIC_DRAW);
-
-        /* Position */
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
-        glEnableVertexAttribArray(0);
-
-        /* Texture coordinates */
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
-        glEnableVertexAttribArray(1);
-      glBindVertexArray(0);
+      appearance.loadTexture(path);
     }
 
     void interact(Entity & e) override {
@@ -548,6 +526,43 @@ class Item : public Entity {
       glDrawArrays(GL_TRIANGLES, 0, 6);
 
       glBindTexture(GL_TEXTURE_2D, 0);
+      glBindVertexArray(0);
+    }
+};
+
+class Item {
+  public:
+    string name;
+
+    GroundEntity * groundEntity;
+
+    Item(uint32_t x, uint32_t y, string n)
+      : groundEntity { new GroundEntity(this, x, y, "res/items.png") }
+      , name(n)
+    {
+      /* Create the model */
+      groundEntity->appearance.vertices = {
+          .125f,  .125f,  0.0f,  0.0f,
+          .125f,  .875f,  0.0f,  0.1f,
+          .875f,  .875f,  .125f, 0.1f,
+
+          .125f,  .125f,  0.0f,  0.0f,
+          .875f,  .125f,  .125f, 0.0f,
+          .875f,  .875f,  .125f, 0.1f,
+      };
+
+      /* Generate the VAO */
+      glBindVertexArray(groundEntity->appearance.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, groundEntity->appearance.vbo);
+        glBufferData(GL_ARRAY_BUFFER, groundEntity->appearance.vertices.size() * sizeof(GLfloat), groundEntity->appearance.vertices.data(), GL_STATIC_DRAW);
+
+        /* Position */
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+        glEnableVertexAttribArray(0);
+
+        /* Texture coordinates */
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+        glEnableVertexAttribArray(1);
       glBindVertexArray(0);
     }
 };
@@ -767,7 +782,9 @@ class Map {
       entities.push_back(new Obelisk { 5, 5 });
       entities.push_back(new Chest { 7, 7, S});
       entities.push_back(new Player { 5, 9 });
-      entities.push_back(new Item { 2, 2, "sword" });
+
+      auto i = new Item { 2, 2, "sword" };
+      entities.push_back(i->groundEntity);
 
       /* Generate the model */
       auto fw = static_cast<float>(w);
