@@ -286,16 +286,22 @@ class Item {
 
 class Inventory {
   public:
-    vector<Item> items;
+    vector<Item *> items;
 
-    void addItem(Item i) {
+    virtual ~Inventory() {
+      for (auto * i : items) {
+        delete i;
+      }
+    }
+
+    void addItem(Item * i) {
       items.push_back(i);
     }
 
     void log() const {
       Logger::log("You have:");
-      for (auto & i : items) {
-        Logger::log("a " + i.name);
+      for (auto * i : items) {
+        Logger::log("a " + i->name);
       }
     }
 };
@@ -323,11 +329,13 @@ class Subject {
     }
 };
 
-class Actor : public Subject {
+class Actor {
   public:
     enum {
       EVENT_IMPLOSION
     };
+
+    Subject events;
 
     Inventory inventory;
     Appearance appearance;
@@ -348,7 +356,7 @@ class Actor : public Subject {
     virtual void render(GraphicsContext context) const = 0;
 
     void implode() {
-      notify(EVENT_IMPLOSION);
+      events.notify(EVENT_IMPLOSION);
     }
 };
 
@@ -449,7 +457,7 @@ class DroppedItem : public Actor {
     }
 
     void interact(Actor & e) override {
-      e.inventory.addItem(*item);
+      e.inventory.addItem(item);
       implode();
     }
 
@@ -472,6 +480,10 @@ class Chest : public OrientedActor {
     Chest(uint32_t x, uint32_t y, Orientation o = N)
       : OrientedActor(x, y, false, o)
     {
+      /* Fill the inventory */
+      inventory.addItem(new Item { "sword" });
+      inventory.addItem(new Item { "sword" });
+
       /* Create the texture */
       appearance.loadTexture("res/chest.png");
 
@@ -504,7 +516,11 @@ class Chest : public OrientedActor {
     }
 
     void interact(Actor & other) override {
-      other.inventory.addItem({ "sword" });
+      for (auto i : inventory.items) {
+        other.inventory.addItem(i);
+      }
+
+      inventory.items.clear();
     }
 
     void render(GraphicsContext context) const override {
@@ -708,6 +724,10 @@ class Map : public Observer {
     ~Map() {
       delete [] map;
 
+      for (auto * a : entities) {
+        delete a;
+      }
+
       glDeleteVertexArrays(1, &vao);
       glDeleteBuffers(1, &vbo);
 
@@ -843,7 +863,7 @@ class Map : public Observer {
     }
 
     void addActor(Actor * e) {
-      e->addObserver(this);
+      e->events.addObserver(this);
       entities.push_back(e);
     }
 
@@ -874,11 +894,15 @@ class Map : public Observer {
     void onNotify(Subject & a, uint32_t event) override {
       if (event == Actor::EVENT_IMPLOSION) {
         for (auto it = entities.begin(); it != entities.end(); it++) {
-          if (*it == &a) {
+          if (&(*it)->events == &a) {
             Logger::log("Entity just died.");
             delete *it;
             entities.erase(it);
           }
+        }
+
+        for (auto * a : entities) {
+          printf("%p\n", a);
         }
       }
     }
