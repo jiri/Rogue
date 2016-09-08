@@ -247,11 +247,89 @@ LogWindow * Logger::window;
 
 enum Orientation { N = 0, E, S, W };
 
-class Inventory;
-
-class Actor {
+class Item {
   public:
-    Inventory * inventory;
+    string name;
+    Appearance appearance;
+
+    Item(string n)
+      : name(n)
+    {
+      appearance.loadTexture("res/items.png");
+
+      /* Create the model */
+      appearance.vertices = {
+          .125f,  .125f,  0.0f,  0.0f,
+          .125f,  .875f,  0.0f,  0.1f,
+          .875f,  .875f,  .125f, 0.1f,
+
+          .125f,  .125f,  0.0f,  0.0f,
+          .875f,  .125f,  .125f, 0.0f,
+          .875f,  .875f,  .125f, 0.1f,
+      };
+
+      /* Generate the VAO */
+      glBindVertexArray(appearance.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, appearance.vbo);
+        glBufferData(GL_ARRAY_BUFFER, appearance.vertices.size() * sizeof(GLfloat), appearance.vertices.data(), GL_STATIC_DRAW);
+
+        /* Position */
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
+        glEnableVertexAttribArray(0);
+
+        /* Texture coordinates */
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
+        glEnableVertexAttribArray(1);
+      glBindVertexArray(0);
+    }
+};
+
+class Inventory {
+  public:
+    vector<Item> items;
+
+    void addItem(Item i) {
+      items.push_back(i);
+    }
+
+    void log() const {
+      Logger::log("You have:");
+      for (auto & i : items) {
+        Logger::log("a " + i.name);
+      }
+    }
+};
+
+class Subject;
+
+class Observer {
+  public:
+    virtual void onNotify(Subject & s, uint32_t event) = 0;
+};
+
+class Subject {
+  protected:
+    vector<Observer *> observers;
+
+  public:
+    void addObserver(Observer * o) {
+      observers.push_back(o);
+    }
+
+    void notify(uint32_t event) {
+      for (auto * o : observers) {
+        o->onNotify(*this, event);
+      }
+    }
+};
+
+class Actor : public Subject {
+  public:
+    enum {
+      EVENT_IMPLOSION
+    };
+
+    Inventory inventory;
     Appearance appearance;
 
     vec2 position;
@@ -268,6 +346,10 @@ class Actor {
     virtual void interact(Actor & other) = 0;
 
     virtual void render(GraphicsContext context) const = 0;
+
+    void implode() {
+      notify(EVENT_IMPLOSION);
+    }
 };
 
 class OrientedActor : public Actor {
@@ -354,22 +436,21 @@ class Obelisk : public Actor {
     }
 };
 
-class Item;
-
-class GroundActor : public Actor {
+class DroppedItem : public Actor {
   private:
     Item * item;
 
   public:
-    GroundActor(Item * i, uint32_t x, uint32_t y, string path)
+    DroppedItem(uint32_t x, uint32_t y, Item *i)
       : Actor(x, y, true)
       , item(i)
     {
-      /* Create the texture */
-      appearance.loadTexture(path);
+      appearance = item->appearance;
     }
 
     void interact(Actor & e) override {
+      e.inventory.addItem(*item);
+      implode();
     }
 
     void render(GraphicsContext context) const override {
@@ -383,59 +464,6 @@ class GroundActor : public Actor {
 
       glBindTexture(GL_TEXTURE_2D, 0);
       glBindVertexArray(0);
-    }
-};
-
-class Item {
-  public:
-    string name;
-
-    GroundActor * groundActor;
-
-    Item(uint32_t x, uint32_t y, string n)
-      : groundActor { new GroundActor(this, x, y, "res/items.png") }
-      , name(n)
-    {
-      /* Create the model */
-      groundActor->appearance.vertices = {
-          .125f,  .125f,  0.0f,  0.0f,
-          .125f,  .875f,  0.0f,  0.1f,
-          .875f,  .875f,  .125f, 0.1f,
-
-          .125f,  .125f,  0.0f,  0.0f,
-          .875f,  .125f,  .125f, 0.0f,
-          .875f,  .875f,  .125f, 0.1f,
-      };
-
-      /* Generate the VAO */
-      glBindVertexArray(groundActor->appearance.vao);
-        glBindBuffer(GL_ARRAY_BUFFER, groundActor->appearance.vbo);
-        glBufferData(GL_ARRAY_BUFFER, groundActor->appearance.vertices.size() * sizeof(GLfloat), groundActor->appearance.vertices.data(), GL_STATIC_DRAW);
-
-        /* Position */
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0);
-        glEnableVertexAttribArray(0);
-
-        /* Texture coordinates */
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat)));
-        glEnableVertexAttribArray(1);
-      glBindVertexArray(0);
-    }
-};
-
-class Inventory {
-  public:
-    vector<Item> items;
-
-    void addItem(Item i) {
-      items.push_back(i);
-    }
-
-    void log() const {
-      Logger::log("You have:");
-      for (auto & i : items) {
-        Logger::log("a " + i.name);
-      }
     }
 };
 
@@ -476,7 +504,7 @@ class Chest : public OrientedActor {
     }
 
     void interact(Actor & other) override {
-      other.inventory->addItem({ 0, 0, "sword"});
+      other.inventory.addItem({ "sword" });
     }
 
     void render(GraphicsContext context) const override {
@@ -498,8 +526,6 @@ class Player : public OrientedActor {
     Player(uint32_t x, uint32_t y)
       : OrientedActor(x, y, false)
     {
-      inventory = new Inventory;
-
       /* Create the texture */
       appearance.loadTexture("res/player.png");
       
@@ -598,12 +624,12 @@ class TileSet {
     }
 };
 
-class Map {
+class Map : public Observer {
   public:
     const TileSet & tileSet;
 
     Tile *map;
-    std::vector<Actor *> entities;
+    vector<Actor *> entities;
 
     uint32_t width;
     uint32_t height;
@@ -612,7 +638,7 @@ class Map {
     GLuint framebuffer;
 
     GLuint vao, vbo;
-    std::vector<GLfloat> vertices;
+    vector<GLfloat> vertices;
     Shader s;
 
     Map(uint32_t w, uint32_t h, const TileSet & t)
@@ -635,12 +661,10 @@ class Map {
         }
       }
 
-      entities.push_back(new Obelisk { 5, 5 });
-      entities.push_back(new Chest { 7, 7, S});
-      entities.push_back(new Player { 5, 9 });
-
-      auto i = new Item { 2, 2, "sword" };
-      entities.push_back(i->groundActor);
+      addActor(new Obelisk { 5, 5 });
+      addActor(new Chest { 7, 7, S});
+      addActor(new Player { 5, 9 });
+      addActor(new DroppedItem { 2, 2, new Item { "sword" } });
 
       /* Generate the model */
       auto fw = static_cast<float>(w);
@@ -819,6 +843,7 @@ class Map {
     }
 
     void addActor(Actor * e) {
+      e->addObserver(this);
       entities.push_back(e);
     }
 
@@ -837,13 +862,25 @@ class Map {
     }
 
     Actor * getActor(vec2 pos) {
-      for (auto e : entities) {
+      for (auto * e : entities) {
         if (e->position == pos) {
           return e;
         }
       }
 
       return nullptr;
+    }
+
+    void onNotify(Subject & a, uint32_t event) override {
+      if (event == Actor::EVENT_IMPLOSION) {
+        for (auto it = entities.begin(); it != entities.end(); it++) {
+          if (*it == &a) {
+            Logger::log("Entity just died.");
+            delete *it;
+            entities.erase(it);
+          }
+        }
+      }
     }
 };
 
@@ -935,7 +972,7 @@ class OrientedActorController {
       }
 
       if (key == GLFW_KEY_TAB) {
-        actor.inventory->log();
+        actor.inventory.log();
       }
 
       if (map.passable(actor.position + delta)) {
