@@ -286,21 +286,15 @@ class Item {
 
 class Inventory {
   public:
-    vector<Item *> items;
+    vector<unique_ptr<Item>> items;
 
-    virtual ~Inventory() {
-      for (auto * i : items) {
-        delete i;
-      }
-    }
-
-    void addItem(Item * i) {
-      items.push_back(i);
+    void addItem(unique_ptr<Item> && i) {
+      items.push_back(move(i));
     }
 
     void log() const {
       Logger::log("You have:");
-      for (auto * i : items) {
+      for (auto & i : items) {
         Logger::log("a " + i->name);
       }
     }
@@ -446,7 +440,7 @@ class Obelisk : public Actor {
 
 class DroppedItem : public Actor {
   private:
-    Item * item;
+    unique_ptr<Item> item;
 
   public:
     DroppedItem(uint32_t x, uint32_t y, Item *i)
@@ -457,7 +451,7 @@ class DroppedItem : public Actor {
     }
 
     void interact(Actor & e) override {
-      e.inventory.addItem(item);
+      e.inventory.addItem(move(item));
       implode();
     }
 
@@ -481,8 +475,8 @@ class Chest : public OrientedActor {
       : OrientedActor(x, y, false, o)
     {
       /* Fill the inventory */
-      inventory.addItem(new Item { "sword" });
-      inventory.addItem(new Item { "sword" });
+      inventory.addItem(make_unique<Item>("sword"));
+      inventory.addItem(make_unique<Item>("sword"));
 
       /* Create the texture */
       appearance.loadTexture("res/chest.png");
@@ -516,8 +510,8 @@ class Chest : public OrientedActor {
     }
 
     void interact(Actor & other) override {
-      for (auto i : inventory.items) {
-        other.inventory.addItem(i);
+      for (auto & i : inventory.items) {
+        other.inventory.addItem(move(i));
       }
 
       inventory.items.clear();
@@ -724,9 +718,9 @@ class Map : public Observer {
     ~Map() {
       delete [] map;
 
-      for (auto * a : entities) {
-        delete a;
-      }
+      // for (auto * a : entities) {
+      //   delete a;
+      // }
 
       glDeleteVertexArrays(1, &vao);
       glDeleteBuffers(1, &vbo);
@@ -899,10 +893,6 @@ class Map : public Observer {
             delete *it;
             entities.erase(it);
           }
-        }
-
-        for (auto * a : entities) {
-          printf("%p\n", a);
         }
       }
     }
